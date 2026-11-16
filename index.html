@@ -54,6 +54,7 @@
   .badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;letter-spacing:.3px}
   .b-new{background:#fff3e0;color:var(--warn)}
   .b-ok{background:#e3f5ea;color:var(--ok)}
+  .b-bad{background:#fdecec;color:var(--bad)}
   .b-chg{background:#fdecea;color:var(--bad)}
   .tabs{display:flex;gap:6px;overflow-x:auto;margin:8px 0 12px;border-bottom:1px solid var(--line)}
   .tabs button{background:none;border-radius:0;font-size:13px;padding:9px 10px;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap}
@@ -139,7 +140,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.6.1';
+const APP_VERSION = '1.7.0';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -327,7 +328,7 @@ async function viewProject(id){
     <div class="row"><h2 class="grow">${esc(p.name)}</h2><button class="sm" id="ep" style="flex:none">Edit</button><button class="sm danger" id="dp" style="flex:none">Delete</button></div>
     <div class="muted">${esc(p.client||'')}${p.client&&p.location?' · ':''}${esc(p.location||'')}</div>
     ${(()=>{ const got=(p.cash||[]).reduce((t,c)=>t+(Number(c.amount)||0),0), spent=(p.expenses||[]).reduce((t,e)=>t+(Number(e.amount)||0),0), bal=got-spent;
-      return `<div class="card tap row" id="liq" style="margin-top:12px"><div><b>Liquidation</b><div class="muted">Petty cash ${peso(got)} · Expenses ${peso(spent)}</div></div>
+      return `<div class="card tap row" id="liq" style="margin-top:12px"><div><b>Liquidation</b> ${liqBadge(p)}<div class="muted">Petty cash ${peso(got)} · Expenses ${peso(spent)}</div></div>
         <div style="flex:none;text-align:right"><div class="muted">${bal<0?'Over':'Balance'}</div><b style="color:${bal<0?'var(--bad)':'var(--ok)'}">${peso(Math.abs(bal))}</b></div></div>`; })()}
     ${salaryCard(p, bhs)}
     <h3>Boreholes</h3>
@@ -340,6 +341,7 @@ async function viewProject(id){
   $('#bk').onclick = e => { e.preventDefault(); go({view:'home'}); };
   $('#ep').onclick = () => editProject(p);
   $('#liq').onclick = () => go({view:'liq', id:p.uid});
+  refreshLiq([p]).then(ch => { if (ch && route.view==='project' && route.id===p.uid) render(); });
   $('#dp').onclick = () => deleteProject(p);
   document.querySelectorAll('[data-b]').forEach(c=>c.onclick=()=>go({view:'bh', id:c.dataset.b}));
   const pend = bhs.filter(b=>!b.uploadedAt || b.updatedAt>b.uploadedAt);
@@ -662,9 +664,10 @@ async function viewLiq(id){
   const p = await dbGet('projects', id); if (!p) return go({view:'home'});
   const key = 'p:' + p.uid;
   const photos = await dbByIndex('photos','bh',key);
-  $('#app').innerHTML = `<div class="crumb"><a href="#" id="bk">‹ ${esc(p.name)}</a></div><h2>Liquidation</h2><div id="tab"></div>`;
+  $('#app').innerHTML = `<div class="crumb"><a href="#" id="bk">‹ ${esc(p.name)}</a></div><h2>Liquidation</h2>${liqStatusCard(p)}<div id="tab"></div>`;
   $('#bk').onclick = ev => { ev.preventDefault(); go({view:'project', id:p.uid}); };
-  tabExpenses(p, photos, {key, save: async () => { p.updatedAt = nowISO(); await dbPut('projects', p); }, back: () => go({view:'liq', id:p.uid})});
+  refreshLiq([p]).then(ch => { if (ch && route.view==='liq' && route.id===p.uid) render(); });
+  tabExpenses(p, photos, {key, save: async () => { p.updatedAt = p.liqEditedAt = nowISO(); await dbPut('projects', p); }, back: () => go({view:'liq', id:p.uid})});
 }
 /* ----- Photos (compressed + GPS/time stamped on the image) ----- */
 const PHOTO_TYPES = ['Whiteboard / SPT log','Borehole location','Drilling rig','Soil sample','Site / surroundings','Other'];
@@ -897,6 +900,76 @@ async function uploadVideo(p, b, v, progress){
     if (r.done) return;
   }
 }
+/* ---------- Liquidation → Finna (via Centrogeo Hub) ---------- */
+const LIQ_LABEL = {pending:['Waiting for approval','b-new'], approved:['Approved','b-ok'], returned:['Returned','b-bad']};
+function liqBadge(p){
+  const l = p.liq; if (!l || !l.sentAt) return '';
+  const changed = (p.liqEditedAt||'') > l.sentAt && l.status !== 'approved';
+  const [t,c] = LIQ_LABEL[l.status] || LIQ_LABEL.pending;
+  return `<span class="badge ${changed?'b-new':c}" style="margin-left:4px">${changed?'Changed · upload again':t}</span>`;
+}
+function liqStatusCard(p){
+  const l = p.liq;
+  if (!l || !l.sentAt) return `<div class="card muted" style="margin-top:8px">Not sent yet. It is sent to the office for approval when you tap <b>Upload Project</b>.</div>`;
+  const [t] = LIQ_LABEL[l.status] || LIQ_LABEL.pending;
+  return `<div class="card" style="margin-top:8px"><div class="row"><b>Office approval</b>${liqBadge(p)}</div>
+    <div class="muted" style="margin-top:4px">Sent ${fmtDT(l.sentAt)}${l.reviewedAt?` · ${t} ${fmtDT(l.reviewedAt)}`:''}</div>
+    ${l.note?`<div style="margin-top:6px;padding:8px;border-radius:8px;background:${l.status==='returned'?'#fdecec':'#eef3fb'}"><b>Note from the office:</b> ${esc(l.note)}</div>`:''}
+    ${l.status==='returned'?`<div class="muted" style="margin-top:6px">Fix the entries below, then tap Upload Project again.</div>`:''}
+    ${l.status==='approved'?`<div class="muted" style="margin-top:6px">Approved — changes here are no longer sent.</div>`:''}</div>`;
+}
+async function refreshLiq(projects){
+  const ps = projects.filter(p => p.liq && p.liq.sentAt);
+  if (!ps.length || !navigator.onLine || !S.hubToken) return false;
+  try {
+    const j = await post({action:'liqStatus', uids: ps.map(p=>p.uid)});
+    let changed = false;
+    for (const p of ps){
+      const st = (j.statuses||{})[p.uid]; if (!st) continue;
+      if (st.status !== p.liq.status || (st.note||'') !== (p.liq.note||'')){
+        const fresh = await dbGet('projects', p.uid);
+        fresh.liq = Object.assign({}, fresh.liq, {status:st.status, note:st.note||'', reviewedAt:st.reviewedAt||''});
+        await dbPut('projects', fresh); Object.assign(p, fresh); changed = true;
+      }
+    }
+    return changed;
+  } catch(e){ return false; }
+}
+async function sendLiquidation(p, say){
+  p = await dbGet('projects', p.uid);
+  if (!(p.cash||[]).length && !(p.expenses||[]).length) return 'empty';
+  if (p.liq && p.liq.status === 'approved') return 'approved';
+  if (p.liq && p.liq.sentAt && !((p.liqEditedAt||p.updatedAt||'') > p.liq.sentAt) && p.liq.status !== 'returned') return 'same';
+  const receipts = await dbByIndex('photos','bh','p:'+p.uid);
+  const idOf = {};
+  let n = 0;
+  for (const e of (p.expenses||[])){
+    const ph = receipts.find(x => x.kind==='receipt' && x.expUid===e.uid); if (!ph || !ph.data) continue;
+    n++;
+    if (!ph.finnaId || ph.finnaSentData !== ph.data.length){
+      say(`${p.name}: liquidation receipt ${n}`);
+      const r = await post({action:'liqPhoto', name:`${p.name} - ${e.desc||'receipt'} - ${e.uid}.jpg`, data:ph.data});
+      ph.finnaId = r.fileId; ph.finnaSentData = ph.data.length; await dbPut('photos', ph);
+    }
+    idOf[e.uid] = ph.finnaId;
+  }
+  const bhs = await dbByIndex('boreholes','project',p.uid);
+  const rows = bhs.map(b => ({bh:b.bhNo, depth:bhDepth(b), pay:bhPay(bhDepth(b))}));
+  const gross = rows.reduce((t,r)=>t+r.pay,0);
+  const got = (p.cash||[]).reduce((t,c)=>t+(Number(c.amount)||0),0), spent = (p.expenses||[]).reduce((t,e)=>t+(Number(e.amount)||0),0);
+  say(`${p.name}: sending liquidation`);
+  const ops = [...new Set(bhs.map(b=>b.operator).filter(Boolean))];
+  const res = await post({action:'saveLiquidation',
+    project:{uid:p.uid, name:p.name, client:p.client||'', location:p.location||''},
+    operator: ops.join(', ') || S.hubName,
+    cash:(p.cash||[]).map(c=>({uid:c.uid, amount:Number(c.amount)||0, from:c.from||'', date:c.date||''})),
+    expenses:(p.expenses||[]).map(e=>({uid:e.uid, desc:e.desc||'', amount:Number(e.amount)||0, date:e.date||'', photoId:idOf[e.uid]||''})),
+    salary:{rows, gross, cash:got, spent, balance:got-spent, net:gross-(got-spent)}});
+  const fresh = await dbGet('projects', p.uid);
+  fresh.liq = res.locked ? Object.assign({}, fresh.liq, {status:'approved'}) : {sentAt:nowISO(), status:'pending', note:''};
+  await dbPut('projects', fresh);
+  return res.locked ? 'approved' : 'sent';
+}
 async function uploadMany(ids){
   // Every borehole needs its water level typed and all required photos before the project can be uploaded
   const missing = [];
@@ -950,9 +1023,20 @@ async function uploadMany(ids){
     } catch(e){ failed.push(`${b.bhNo}: ${e.message}`); if (e.auth) break; }
     done++; bar();
   }
+  let liqMsg = '';
+  if (S.hubToken){
+    const puids = [...new Set((await Promise.all(ids.map(id=>dbGet('boreholes',id)))).filter(Boolean).map(b=>b.projectUid))];
+    for (const pu of puids){
+      const p = await dbGet('projects', pu); if (!p) continue;
+      try { const r = await sendLiquidation(p, say);
+        if (r==='sent') liqMsg += `\nLiquidation for ${p.name} sent for approval.`;
+        if (r==='approved') liqMsg += `\nLiquidation for ${p.name} is already approved.`; }
+      catch(e){ failed.push(`Liquidation (${p.name}): ${e.message}`); if (e.auth) break; }
+    }
+  }
   m.querySelector('#pb').style.width = '100%';
   if (!S.hubToken) showGate('Sign in again to finish uploading.');
-  say(failed.length ? `Some failed:\n${failed.join('\n')}\nYour data is still safe on the phone — try again.` : `Done! ${ids.length} borehole(s) sent to Centrogeo Hub. The office will see the project under "New from the field".`);
+  say(failed.length ? `Some failed:\n${failed.join('\n')}\nYour data is still safe on the phone — try again.` : `Done! ${ids.length} borehole(s) sent to Centrogeo Hub. The office will see the project under "Ongoing projects".` + liqMsg);
   m.querySelector('#ul').style.whiteSpace = 'pre-line';
   const cl = m.querySelector('#cl'); cl.disabled = false; cl.textContent = 'Close'; cl.className = 'pri';
   cl.onclick = () => { m.remove(); render(); };
