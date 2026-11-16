@@ -139,7 +139,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.5.6';
+const APP_VERSION = '1.6.0';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -329,6 +329,7 @@ async function viewProject(id){
     ${(()=>{ const got=(p.cash||[]).reduce((t,c)=>t+(Number(c.amount)||0),0), spent=(p.expenses||[]).reduce((t,e)=>t+(Number(e.amount)||0),0), bal=got-spent;
       return `<div class="card tap row" id="liq" style="margin-top:12px"><div><b>Liquidation</b><div class="muted">Petty cash ${peso(got)} · Expenses ${peso(spent)}</div></div>
         <div style="flex:none;text-align:right"><div class="muted">${bal<0?'Over':'Balance'}</div><b style="color:${bal<0?'var(--bad)':'var(--ok)'}">${peso(Math.abs(bal))}</b></div></div>`; })()}
+    ${salaryCard(p, bhs)}
     <h3>Boreholes</h3>
     ${bhs.length ? bhs.map(b=>{
       const last = b.spt.length ? Math.max(...b.spt.map(s=>num(s.to)||0)) : 0;
@@ -639,6 +640,23 @@ function editExpense(b, e, photos, ctx){
   };
 }
 
+/* Projected operator salary per borehole, by final depth (rates set by the owner) */
+const SALARY_RATES = [ {upTo:15, pay:5000}, {upTo:25, pay:10000}, {upTo:30, pay:12000} ];
+const bhDepth = b => b.spt.length ? Math.max(...b.spt.map(s=>num(s.to)||0)) : 0;
+const bhPay = d => { if (!d) return 0; const r = SALARY_RATES.find(r => d <= r.upTo); return r ? r.pay : SALARY_RATES[SALARY_RATES.length-1].pay; };
+function salaryCard(p, bhs){
+  const rows = bhs.map(b => ({bh:b.bhNo, d:bhDepth(b)})).map(r => ({...r, pay:bhPay(r.d)}));
+  const gross = rows.reduce((t,r)=>t+r.pay,0);
+  const got=(p.cash||[]).reduce((t,c)=>t+(Number(c.amount)||0),0), spent=(p.expenses||[]).reduce((t,e)=>t+(Number(e.amount)||0),0), bal=got-spent;
+  const net = gross - bal;
+  return `<div class="card" style="margin-top:8px"><b>Projected Salary</b>
+    ${rows.length ? rows.map(r=>`<div class="row" style="margin-top:4px"><span>${esc(r.bh)} <span class="muted">· ${r.d?r.d+' m':'no depth yet'}${r.d>30?' (over 30 m)':''}</span></span><span style="flex:none">${peso(r.pay)}</span></div>`).join('') : `<div class="muted" style="margin-top:4px">No boreholes yet.</div>`}
+    <div class="row" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line)"><span>Subtotal</span><b style="flex:none">${peso(gross)}</b></div>
+    <div class="row" style="margin-top:4px"><span>${bal>=0?'Less: petty cash to return':'Add: over-budget expenses'}</span><span style="flex:none;color:${bal>=0?'var(--bad)':'var(--ok)'}">${bal>=0?'− ':'+ '}${peso(Math.abs(bal))}</span></div>
+    <div class="row" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line)"><b>Final salary</b><b style="flex:none;color:var(--navy)">${peso(net)}</b></div>
+    <div class="muted" style="margin-top:6px">Rates per borehole: up to 15 m ₱5,000 · over 15–25 m ₱10,000 · over 25–30 m ₱12,000. Depth = deepest sample.</div>
+  </div>`;
+}
 /* Liquidation is per project: petty cash received, expenses, balance */
 async function viewLiq(id){
   const p = await dbGet('projects', id); if (!p) return go({view:'home'});
