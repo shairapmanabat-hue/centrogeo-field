@@ -139,7 +139,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.3.1';
+const APP_VERSION = '1.3.2';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -665,7 +665,7 @@ function hubLogin(){
     };
   });
 }
-function hubSignOut(){ S.hubToken = ''; S.hubName = ''; saveSettings(); toast('Signed out'); showGate(); }
+function hubSignOut(){ S.hubToken = ''; S.hubName = ''; saveSettings(); toast('Signed out'); render(); }
 /* The app is locked until someone signs in with an account the owner created in the Report Hub */
 function showGate(msg){
   let g = document.getElementById('gate');
