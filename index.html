@@ -139,7 +139,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.5.4';
+const APP_VERSION = '1.5.5';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -670,6 +670,9 @@ function tabPhotos(b, p, photos, opts={}){
         <div style="flex:none"><span class="badge ${done===it.slots.length?'b-ok':'b-new'}">${done}/${it.slots.length}</span></div></div>
         <div style="display:grid;grid-template-columns:${it.slots.length>1?'1fr 1fr':'1fr'};gap:8px;margin-top:10px">
         ${it.slots.map((sl,j)=>{ const ph = req.find(x=>x.reqKey===it.key && x.slot===sl); const lb = it.labels ? it.labels[j] : sl;
+          if (ph && ph.data) return `<button data-k="${it.key}" data-sl="${esc(sl)}" style="padding:0;overflow:hidden;background:#fff;color:var(--ok);text-align:left">
+            <img src="${ph.data}" alt="" style="display:block;width:100%;height:${it.slots.length>1?'120px':'200px'};object-fit:cover">
+            <div style="padding:6px 8px;font-size:13px">✓ ${esc(lb)}${it.gps && ph.lat==null?' <span style="color:var(--warn)">⚠ no GPS</span>':''} <span class="muted" style="float:right">tap to change</span></div></button>`;
           return `<button class="${ph?'':'pri'}" data-k="${it.key}" data-sl="${esc(sl)}" style="${ph?'background:#e3f5ea;color:var(--ok)':''}">
             ${ph?'✓':(it.video?'🎥':'📷')} ${esc(lb)}${ph && it.gps && ph.lat==null?' <span style="color:var(--warn)">⚠ no GPS</span>':''}</button>`; }).join('')}
         </div></div>`;
