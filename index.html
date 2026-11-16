@@ -139,7 +139,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.4.1';
+const APP_VERSION = '1.4.2';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -355,7 +355,7 @@ async function viewBH(id, tab){
   $('#app').innerHTML = `
     <div class="crumb"><a href="#" id="bk">‹ ${esc(p?.name||'Project')}</a></div>
     <div class="row"><h2 class="grow">${esc(b.bhNo)}</h2><div style="flex:none">${status(b)}</div></div>
-    <div class="tabs">${T('info','Info')}${T('spt',`Samples (${b.spt.length})`)}${T('water',`Water (${b.water.length})`)}${T('photos',`Photos (${photos.filter(x=>x.reqKey!=='water').length})`)}</div>
+    <div class="tabs">${T('info','Info')}${T('spt',`Samples (${b.spt.length})`)}${T('water',`Water${b.water.length?' ✓':''}`)}${T('photos',`Photos (${photos.filter(x=>x.reqKey!=='water').length})`)}</div>
     <div id="tab"></div>`;
   $('#bk').onclick = e => { e.preventDefault(); go({view:'project', id:b.projectUid}); };
   document.querySelectorAll('[data-t]').forEach(x=>x.onclick=()=>go({view:'bh', id, tab:x.dataset.t}));
@@ -494,13 +494,21 @@ async function editSPT(b, s){
 
 /* ----- Water level ----- */
 function tabWater(b){
-  const rows = [...b.water].sort((x,y)=>(x.dateTime||'').localeCompare(y.dateTime||''));
-  $('#tab').innerHTML = rows.length ? `<table><thead><tr><th>Reading</th><th>Depth (m)</th><th>When</th></tr></thead><tbody>
-    ${rows.map(w=>`<tr data-w="${w.uid}" style="cursor:pointer"><td>${esc(w.type)}${w.remarks?`<div class="muted">${esc(w.remarks)}</div>`:''}</td><td class="n">${w.dry?'Dry':esc(w.depth)}</td><td>${fmtDT(w.dateTime)}</td></tr>`).join('')}</tbody></table>`
-    : `<div class="empty">No water level readings yet. Tap <b>+ Add Reading</b> to type the water level.</div>`;
-  document.querySelectorAll('[data-w]').forEach(r=>r.onclick=()=>editWater(b, b.water.find(w=>w.uid===r.dataset.w)));
-  setFab(`<button class="pri" id="aw">+ Add Reading</button>`);
-  $('#aw').onclick = () => editWater(b);
+  // One water level per borehole, typed directly (no separate readings)
+  const w = (b.water||[]).slice(-1)[0] || {};
+  $('#tab').innerHTML = `
+    <label>Water level below ground (m) *</label>
+    <input id="wl" type="number" step="0.01" inputmode="decimal" placeholder="e.g. 2.50" value="${w.dry?'':esc(w.depth??'')}" ${w.dry?'disabled':''}>
+    <label class="check"><input type="checkbox" id="wdry" ${w.dry?'checked':''}> No water encountered (dry)</label>`;
+  const keep = async () => {
+    const dry = $('#wdry').checked, d = $('#wl').value.trim();
+    $('#wl').disabled = dry; if (dry) $('#wl').value = '';
+    b.water = (dry || d!=='') ? [{uid: w.uid || uid(), type:'', depth: dry?'':d, dry, dateTime: w.dateTime || nowISO().slice(0,16), remarks:''}] : [];
+    await touch(b);
+  };
+  $('#wl').onchange = keep; $('#wl').oninput = () => { clearTimeout(window._wlT); window._wlT = setTimeout(keep, 500); };
+  $('#wdry').onchange = keep;
+  setFab('');
 }
 function editWater(b, w){
   const isNew = !w;
@@ -564,8 +572,14 @@ function tabPhotos(b, p, photos, opts={}){
     const v = !!it.video;
     const m = modal(`<h2>${esc(cur.label)}</h2><p class="muted">${esc(it.name)}${has?` · this will replace the saved ${v?'video':'photo'}`:''}</p>
       ${v?'<p class="muted">Keep it short (about 15–30 seconds) so it uploads faster.</p>':''}
-      <div class="row" style="margin-top:10px"><button class="pri" id="mc">${v?'🎥 Record Video':'📷 Take Photo'}</button><button id="mg">🖼 Gallery</button></div>
-      <div class="acts"><button id="cx">Cancel</button></div>`);
+      ${has && !v ? `<img src="${req.find(x=>x.reqKey===it.key && x.slot===cur.slot).data}" style="width:100%;margin-top:8px;border:1px solid var(--line)">` : ''}
+      <div class="row" style="margin-top:10px"><button class="pri" id="mc">${v?'🎥 Record Video':(has?'📷 Retake':'📷 Take Photo')}</button><button id="mg">🖼 Gallery</button></div>
+      <div class="acts">${has?`<button class="danger" id="md">🗑 Delete ${v?'video':'photo'}</button>`:''}<button id="cx">Cancel</button></div>`);
+    if (has) m.querySelector('#md').onclick = async () => {
+      if (!await confirmBox(`Delete ${cur.label} from this phone?`)) return;
+      for (const old of req.filter(x=>x.reqKey===it.key && x.slot===cur.slot)) await dbDel('photos', old.uid);
+      await touch(b); m.remove(); toast(`${cur.label} deleted`); go({view:'bh', id:b.uid, tab:tabName});
+    };
     m.querySelector('#cx').onclick = () => m.remove();
     m.querySelector('#mc').onclick = () => { m.remove(); $(v?'#vcam':'#rcam').click(); };
     m.querySelector('#mg').onclick = () => { m.remove(); $(v?'#vgal':'#rgal').click(); };
@@ -751,7 +765,7 @@ async function uploadMany(ids){
   if (!S.hubToken && !await hubLogin()) return;
   const noWater = [];
   for (const id of ids){ const b = await dbGet('boreholes', id); if (b && !(b.water||[]).length) noWater.push(b.bhNo || 'BH'); }
-  if (noWater.length) return toast(`Type the water level first (Water tab): ${noWater.join(', ')}`, 4500);
+  if (noWater.length) return toast(`Type the water level first (Water tab), or tick dry: ${noWater.join(', ')}`, 4500);
   const m = modal(`<h2>Uploading…</h2><div id="ul" class="muted">Starting</div><div class="prog"><i id="pb"></i></div><div class="acts"><button id="cl" disabled>Please wait</button></div>`);
   const say = t => m.querySelector('#ul').textContent = t;
   let done = 0, failed = [];
