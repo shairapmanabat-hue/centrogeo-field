@@ -139,7 +139,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.5.5';
+const APP_VERSION = '1.5.6';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -880,11 +880,26 @@ async function uploadVideo(p, b, v, progress){
   }
 }
 async function uploadMany(ids){
+  // Every borehole needs its water level typed and all required photos before the project can be uploaded
+  const missing = [];
+  for (const id of ids){
+    const b = await dbGet('boreholes', id); if (!b) continue;
+    const phs = await dbByIndex('photos','bh',id), need = [];
+    const w = (b.water||[]).slice(-1)[0];
+    if (!w) need.push('water level');
+    for (const it of REQUIRED_PHOTOS) {
+      if (it.key==='water' && w && w.dry) continue; // no photo needed when the hole is dry
+      const have = it.slots.filter(sl => phs.some(x => x.reqKey===it.key && x.slot===sl)).length;
+      if (have < it.slots.length) need.push(it.key==='water' ? 'water level photo' : `${it.slots.length-have} site photo${it.slots.length-have>1?'s':''}`);
+    }
+    if (need.length) missing.push(`${b.bhNo||'BH'}: ${need.join(', ')}`);
+  }
+  if (missing.length) {
+    const m2 = modal(`<h2>Can't upload yet</h2><p class="muted">Complete these first:</p><ul style="margin:6px 0 0 18px;padding:0">${missing.map(x=>`<li style="margin:4px 0">${esc(x)}</li>`).join('')}</ul><div class="acts"><button class="pri" id="okm">OK</button></div>`);
+    m2.querySelector('#okm').onclick = () => m2.remove(); return;
+  }
   if (!navigator.onLine) return toast('No internet. Connect to Wi-Fi first, then tap Upload again.', 3500);
   if (!S.hubToken && !await hubLogin()) return;
-  const noWater = [];
-  for (const id of ids){ const b = await dbGet('boreholes', id); if (b && !(b.water||[]).length) noWater.push(b.bhNo || 'BH'); }
-  if (noWater.length) return toast(`Type the water level first (Water tab), or tick dry: ${noWater.join(', ')}`, 4500);
   const m = modal(`<h2>Uploading…</h2><div id="ul" class="muted">Starting</div><div class="prog"><i id="pb"></i></div><div class="acts"><button id="cl" disabled>Please wait</button></div>`);
   const say = t => m.querySelector('#ul').textContent = t;
   let done = 0, failed = [];
