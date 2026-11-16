@@ -139,7 +139,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.5.3';
+const APP_VERSION = '1.5.4';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -327,7 +327,7 @@ async function viewProject(id){
     <div class="row"><h2 class="grow">${esc(p.name)}</h2><button class="sm" id="ep" style="flex:none">Edit</button><button class="sm danger" id="dp" style="flex:none">Delete</button></div>
     <div class="muted">${esc(p.client||'')}${p.client&&p.location?' · ':''}${esc(p.location||'')}</div>
     ${(()=>{ const got=(p.cash||[]).reduce((t,c)=>t+(Number(c.amount)||0),0), spent=(p.expenses||[]).reduce((t,e)=>t+(Number(e.amount)||0),0), bal=got-spent;
-      return `<div class="card tap row" id="liq" style="margin-top:12px"><div><b>💰 Liquidation</b><div class="muted">Petty cash ${peso(got)} · Expenses ${peso(spent)}</div></div>
+      return `<div class="card tap row" id="liq" style="margin-top:12px"><div><b>Liquidation</b><div class="muted">Petty cash ${peso(got)} · Expenses ${peso(spent)}</div></div>
         <div style="flex:none;text-align:right"><div class="muted">${bal<0?'Over':'Balance'}</div><b style="color:${bal<0?'var(--bad)':'var(--ok)'}">${peso(Math.abs(bal))}</b></div></div>`; })()}
     <h3>Boreholes</h3>
     ${bhs.length ? bhs.map(b=>{
