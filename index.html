@@ -139,7 +139,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.3.6';
+const APP_VERSION = '1.3.7';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -204,7 +204,8 @@ function modal(html){
     } catch(e){}
     const save = () => { try { const d = {}; fields().forEach(el => d[el.id] = el.type==='checkbox' ? el.checked : el.value);
       localStorage.setItem(key, JSON.stringify(d)); localStorage.setItem('cg_draft_open', title); } catch(e){} };
-    m.addEventListener('input', save); m.addEventListener('change', save);
+    m.addEventListener('input', save); m.addEventListener('change', save); m.addEventListener('keyup', save); m.addEventListener('compositionend', save);
+    m._save = save; save();
     const rm = m.remove.bind(m);
     m.remove = () => { try { localStorage.removeItem(key); if (localStorage.getItem('cg_draft_open')===title) localStorage.removeItem('cg_draft_open'); } catch(e){} rm(); };
   }
@@ -227,6 +228,10 @@ function status(bh){
 }
 function updateNet(){ const n=$('#net'); n.textContent = navigator.onLine ? 'Online' : 'Offline'; n.classList.toggle('on', navigator.onLine); }
 addEventListener('online', updateNet); addEventListener('offline', updateNet);
+/* Save any open form the moment the user leaves the app (switching to Messenger, etc.) */
+const saveOpenForms = () => document.querySelectorAll('.modal').forEach(m => { if (m._save) m._save(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveOpenForms(); });
+addEventListener('pagehide', saveOpenForms); addEventListener('blur', saveOpenForms);
 
 /* ---------- GPS ---------- */
 function getGPS(timeout=20000){
@@ -815,7 +820,7 @@ window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); window
 updateNet();
 window.addEventListener('online', verifyHub);
 openDB().then(async () => { if (!S.hubToken) showGate(); else { await render(); verifyHub();
-  try { if (localStorage.getItem('cg_draft_open')==='New Project') editProject(); } catch(e){} } }).catch(e => { $('#app').innerHTML = `<div class="empty">Phone storage is not available: ${esc(e.message)}</div>`; });
+  try { const d = JSON.parse(localStorage.getItem('cg_draft:New Project')||'null'); if (localStorage.getItem('cg_draft_open')==='New Project' || (d && Object.values(d).some(v => String(v).trim()))) editProject(); } catch(e){} } }).catch(e => { $('#app').innerHTML = `<div class="empty">Phone storage is not available: ${esc(e.message)}</div>`; });
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   // Always check for a new version, and switch to it as soon as it's installed
   navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).then(r => r.update()).catch(()=>{});
