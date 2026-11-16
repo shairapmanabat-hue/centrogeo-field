@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#233A63">
 <title>CentroGeo Field Boring</title>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
   :root{--navy:#233A63;--orange:#FF5A1F;--lorange:#FF8A4C;--tan:#A88B74;--brown:#4A3328;--sky:#DDF4FB;
@@ -93,7 +93,7 @@
   body{background:#e6e9ee}
   header{background:linear-gradient(#24497f,#1a3866);border-bottom:1px solid #102647;box-shadow:0 1px 3px rgba(0,0,0,.25)}
   header .ttl b{color:#fff} header .ttl small{color:#c9d6ea}
-  header .logo{background:#fff;border-radius:2px;padding:2px}
+  header .logo{background:#fff;border-radius:50%;padding:2px;object-fit:contain}
   .net{border-radius:2px;background:rgba(255,255,255,.15);color:#dfe8f5}
   .net.on{background:#2e8b57;color:#fff}
   h2{font-size:16px;font-weight:600}
@@ -122,15 +122,7 @@
 </head>
 <body>
 <header>
-  <svg class="logo" id="logo" viewBox="0 0 64 64" title="Double-tap for admin settings">
-    <defs><clipPath id="c"><circle cx="32" cy="32" r="30"/></clipPath></defs>
-    <g clip-path="url(#c)">
-      <rect width="64" height="64" fill="#FF8A4C"/>
-      <path d="M0 22 Q16 16 32 22 T64 22 V64 H0Z" fill="#FF5A1F"/>
-      <path d="M0 36 Q16 30 32 36 T64 36 V64 H0Z" fill="#A88B74"/>
-      <path d="M0 49 Q16 43 32 49 T64 49 V64 H0Z" fill="#4A3328"/>
-    </g>
-  </svg>
+  <img class="logo" id="logo" src="logo-mark.png" alt="Centrogeo" title="Double-tap for admin settings">
   <div class="ttl"><b>CENTROGEO</b><small id="who">Field Boring</small></div>
   <span class="net" id="net">Offline</span>
 </header>
@@ -143,7 +135,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.2.1';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
