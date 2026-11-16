@@ -21,6 +21,12 @@
   .net{font-size:11px;padding:3px 8px;border-radius:99px;background:#eef1f6;color:var(--muted);white-space:nowrap}
   .net.on{background:#e3f5ea;color:var(--ok)}
   main{max-width:720px;margin:0 auto;padding:14px 14px 110px}
+  /* On a computer or tablet, show the app in a phone-sized frame (phones are unchanged) */
+  @media (min-width:600px){
+    html{background:#e9edf3;height:100%}
+    body{width:420px;height:calc(100vh - 40px);max-height:900px;margin:20px auto;overflow:auto;border-radius:28px;
+      box-shadow:0 12px 40px rgba(20,35,60,.25);border:8px solid #1b2333;transform:translateZ(0)}
+  }
   h2{font-size:17px;color:var(--navy);margin:6px 0 12px}
   h3{font-size:11.5px;color:var(--navy);margin:16px 0 6px;text-transform:uppercase;letter-spacing:.8px}
   .crumb{color:var(--muted);font-size:13px;margin-bottom:6px}
@@ -104,7 +110,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.1';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
