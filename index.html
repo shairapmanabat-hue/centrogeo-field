@@ -139,7 +139,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.4.2';
+const APP_VERSION = '1.4.3';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -861,7 +861,10 @@ openDB().then(async () => { if (!S.hubToken) showGate(); else { await render(); 
   try { const d = JSON.parse(localStorage.getItem('cg_draft:New Project')||'null'); if (localStorage.getItem('cg_draft_open')==='New Project' || (d && Object.values(d).some(v => String(v).trim()))) editProject(); } catch(e){} } }).catch(e => { $('#app').innerHTML = `<div class="empty">Phone storage is not available: ${esc(e.message)}</div>`; });
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   // Always check for a new version, and switch to it as soon as it's installed
-  navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).then(r => r.update()).catch(()=>{});
+  navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).then(r => { r.update();
+    // also check for a new version whenever the app is brought back to the front
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && navigator.onLine) r.update().catch(()=>{}); });
+  }).catch(()=>{});
   let reloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded && !document.querySelector('.modal')) { reloaded = true; location.reload(); } });
 }
