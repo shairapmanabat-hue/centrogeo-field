@@ -139,7 +139,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.3.9';
+const APP_VERSION = '1.4.1';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -355,14 +355,15 @@ async function viewBH(id, tab){
   $('#app').innerHTML = `
     <div class="crumb"><a href="#" id="bk">‹ ${esc(p?.name||'Project')}</a></div>
     <div class="row"><h2 class="grow">${esc(b.bhNo)}</h2><div style="flex:none">${status(b)}</div></div>
-    <div class="tabs">${T('info','Info')}${T('spt',`Samples (${b.spt.length})`)}${T('water',`Water (${b.water.length})`)}${T('photos',`Photos (${photos.length})`)}</div>
+    <div class="tabs">${T('info','Info')}${T('spt',`Samples (${b.spt.length})`)}${T('water',`Water (${b.water.length})`)}${T('photos',`Photos (${photos.filter(x=>x.reqKey!=='water').length})`)}</div>
     <div id="tab"></div>`;
   $('#bk').onclick = e => { e.preventDefault(); go({view:'project', id:b.projectUid}); };
   document.querySelectorAll('[data-t]').forEach(x=>x.onclick=()=>go({view:'bh', id, tab:x.dataset.t}));
   setFab('');
   if (tab==='info') tabInfo(b);
   if (tab==='spt') tabSPT(b);
-  if (tab==='water') tabWater(b);
+  if (tab==='water') { tabWater(b); const d = document.createElement('div'); d.id = 'wphoto'; $('#tab').appendChild(d);
+    tabPhotos(b, p, photos, {keys:['water'], tab:'water', target:'#wphoto', title:'Water level photo'}); }
   if (tab==='photos') tabPhotos(b, p, photos);
 }
 
@@ -372,14 +373,27 @@ function tabInfo(b){
     ${F('bhNo','Borehole no. *')}
     <div class="row"><div>${F('dateStart','Date started','date')}</div><div>${F('dateEnd','Date finished','date')}</div></div>
     ${F('operator','Driller / operator')}
-    ${F('helper','Helper(s)')}
+    <div id="helpers"></div>
     ${F('method','Boring method')}
     ${F('weather','Weather')}
     <label>Notes</label><textarea data-k="notes">${esc(b.notes)}</textarea>
     <button class="pri full" id="saveinfo" style="margin-top:16px">💾 Save</button>
     <button class="danger full" id="delb" style="margin-top:22px">Delete this borehole from phone</button>`;
+  // Helpers: one field per name, up to 3
+  let hs = Array.isArray(b.helpers) ? b.helpers.slice() : String(b.helper||'').split(/\s*[,/;]\s*/).filter(Boolean);
+  const keepHelpers = async () => { const v = [...document.querySelectorAll('#helpers [data-h]')].map(i => i.value.trim()).filter(Boolean).slice(0,3);
+    b.helpers = v; b.helper = v.join(', '); await touch(b); };
+  const drawHelpers = () => {
+    const n = Math.min(3, Math.max(1, hs.length));
+    $('#helpers').innerHTML = Array.from({length:n}, (_,i) => `<label>Helper ${i+1}</label><input data-h="${i}" value="${esc(hs[i]||'')}" placeholder="Name of helper ${i+1}">`).join('')
+      + (n < 3 ? `<button class="sm" id="addh" style="margin-top:8px">+ Add helper</button>` : '');
+    document.querySelectorAll('#helpers [data-h]').forEach(i => { i.oninput = () => { hs[+i.dataset.h] = i.value; }; i.onchange = keepHelpers; });
+    if ($('#addh')) $('#addh').onclick = () => { hs = [...document.querySelectorAll('#helpers [data-h]')].map(i => i.value); hs.push(''); drawHelpers();
+      const last = document.querySelector(`#helpers [data-h="${hs.length-1}"]`); if (last) last.focus(); };
+  };
+  drawHelpers();
   document.querySelectorAll('#tab [data-k]').forEach(i => i.onchange = async () => { b[i.dataset.k] = i.value.trim(); await touch(b); });
-  $('#saveinfo').onclick = async () => { document.querySelectorAll('#tab [data-k]').forEach(i => b[i.dataset.k] = i.value.trim()); await touch(b); toast('Saved'); };
+  $('#saveinfo').onclick = async () => { document.querySelectorAll('#tab [data-k]').forEach(i => b[i.dataset.k] = i.value.trim()); await keepHelpers(); toast('Saved'); };
   $('#delb').onclick = async () => { if (await confirmBox(`Delete ${b.bhNo} and all its photos from this phone?`)) { const pu=b.projectUid; await deleteBH(b.uid); go({view:'project', id:pu}); } };
 }
 
@@ -483,7 +497,7 @@ function tabWater(b){
   const rows = [...b.water].sort((x,y)=>(x.dateTime||'').localeCompare(y.dateTime||''));
   $('#tab').innerHTML = rows.length ? `<table><thead><tr><th>Reading</th><th>Depth (m)</th><th>When</th></tr></thead><tbody>
     ${rows.map(w=>`<tr data-w="${w.uid}" style="cursor:pointer"><td>${esc(w.type)}${w.remarks?`<div class="muted">${esc(w.remarks)}</div>`:''}</td><td class="n">${w.dry?'Dry':esc(w.depth)}</td><td>${fmtDT(w.dateTime)}</td></tr>`).join('')}</tbody></table>`
-    : `<div class="empty">No water level readings yet.</div>`;
+    : `<div class="empty">No water level readings yet. Tap <b>+ Add Reading</b> to type the water level.</div>`;
   document.querySelectorAll('[data-w]').forEach(r=>r.onclick=()=>editWater(b, b.water.find(w=>w.uid===r.dataset.w)));
   setFab(`<button class="pri" id="aw">+ Add Reading</button>`);
   $('#aw').onclick = () => editWater(b);
@@ -519,14 +533,16 @@ const REQUIRED_PHOTOS = [
   {key:'corners', name:'Take 3 photos of the site with GPS.', gps:true, slots:['Corner 1','Corner 2','Corner 3'], labels:['Site Photo 1','Site Photo 2','Site Photo 3']},
   {key:'water', name:'Take 1 photo of the water level reading.', gps:false, slots:['Water Level']},
 ]
-function tabPhotos(b, p, photos){
+function tabPhotos(b, p, photos, opts={}){
+  const keys = opts.keys || ['corners'], tabName = opts.tab || 'photos';
+  const list = REQUIRED_PHOTOS.filter(x => keys.includes(x.key));
   const req = photos.filter(x=>x.reqKey);
-  $('#tab').innerHTML = `
-    <h3 style="margin-top:6px">Required Photo List</h3>
-    ${REQUIRED_PHOTOS.map((it,i)=>{
+  (opts.target ? $(opts.target) : $('#tab')).innerHTML = `
+    <h3 style="margin-top:${opts.target?'16px':'6px'}">${esc(opts.title || 'Required Photo List')}</h3>
+    ${list.map((it,i)=>{
       const done = it.slots.filter(sl=>req.some(x=>x.reqKey===it.key && x.slot===sl)).length;
       return `<div class="card">
-        <div class="row"><div style="font-weight:600">${i+1}. ${esc(it.name)}</div>
+        <div class="row"><div style="font-weight:600">${list.length>1?(i+1)+'. ':''}${esc(it.name)}</div>
         <div style="flex:none"><span class="badge ${done===it.slots.length?'b-ok':'b-new'}">${done}/${it.slots.length}</span></div></div>
         <div style="display:grid;grid-template-columns:${it.slots.length>1?'1fr 1fr':'1fr'};gap:8px;margin-top:10px">
         ${it.slots.map((sl,j)=>{ const ph = req.find(x=>x.reqKey===it.key && x.slot===sl); const lb = it.labels ? it.labels[j] : sl;
@@ -562,7 +578,7 @@ function tabPhotos(b, p, photos){
     if (!data) return;
     for (const old of req.filter(x=>x.reqKey===cur.it.key && x.slot===cur.slot)) await dbDel('photos', old.uid);
     await dbPut('photos', {uid:uid(), bhUid:b.uid, reqKey:cur.it.key, slot:cur.slot, category:cur.it.name, caption:cur.slot, data, lat:g?.lat??null, lng:g?.lng??null, acc:g?.acc??null, takenAt:nowISO(), uploadedAt:null});
-    await touch(b); toast(g ? `${cur.slot} saved` : `${cur.slot} saved — no GPS, retake outdoors`, 3000); go({view:'bh', id:b.uid, tab:'photos'});
+    await touch(b); toast(g ? `${cur.slot} saved` : `${cur.slot} saved — no GPS, retake outdoors`, 3000); go({view:'bh', id:b.uid, tab:tabName});
   };
   $('#rcam').onchange = saveReq; $('#rgal').onchange = saveReq;
   const saveVid = async e => {
@@ -572,7 +588,7 @@ function tabPhotos(b, p, photos){
     for (const old of req.filter(x=>x.reqKey===cur.it.key && x.slot===cur.slot)) await dbDel('photos', old.uid);
     const ext = (f.name.split('.').pop() || 'mp4').toLowerCase();
     await dbPut('photos', {uid:uid(), bhUid:b.uid, reqKey:cur.it.key, slot:cur.slot, kind:'video', category:cur.it.name, caption:cur.slot, blob:f, mime:f.type||'video/mp4', ext, size:f.size, lat:g?.lat??null, lng:g?.lng??null, acc:g?.acc??null, takenAt:nowISO(), uploadedAt:null});
-    await touch(b); toast(`${cur.slot} saved (${(f.size/1048576).toFixed(1)} MB)`, 3000); go({view:'bh', id:b.uid, tab:'photos'});
+    await touch(b); toast(`${cur.slot} saved (${(f.size/1048576).toFixed(1)} MB)`, 3000); go({view:'bh', id:b.uid, tab:tabName});
   };
   $('#vcam').onchange = saveVid; $('#vgal').onchange = saveVid;
 
@@ -733,6 +749,9 @@ async function uploadVideo(p, b, v, progress){
 async function uploadMany(ids){
   if (!navigator.onLine) return toast('No internet. Connect to Wi-Fi first, then tap Upload again.', 3500);
   if (!S.hubToken && !await hubLogin()) return;
+  const noWater = [];
+  for (const id of ids){ const b = await dbGet('boreholes', id); if (b && !(b.water||[]).length) noWater.push(b.bhNo || 'BH'); }
+  if (noWater.length) return toast(`Type the water level first (Water tab): ${noWater.join(', ')}`, 4500);
   const m = modal(`<h2>Uploading…</h2><div id="ul" class="muted">Starting</div><div class="prog"><i id="pb"></i></div><div class="acts"><button id="cl" disabled>Please wait</button></div>`);
   const say = t => m.querySelector('#ul').textContent = t;
   let done = 0, failed = [];
