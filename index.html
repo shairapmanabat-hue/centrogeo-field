@@ -110,7 +110,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.1.2';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -223,9 +223,8 @@ async function viewHome(){
   if ($('#so')) $('#so').onclick = e => { e.preventDefault(); hubSignOut(); };
   if ($('#si')) $('#si').onclick = async e => { e.preventDefault(); if (await hubLogin()) render(); };
   document.querySelectorAll('[data-p]').forEach(c=>c.onclick=()=>go({view:'project', id:c.dataset.p}));
-  setFab(`<button class="pri" id="np">+ New Project</button>${pending.length?`<button class="acc" id="ua">☁ Upload All (${pending.length})</button>`:''}`);
+  setFab(`<button class="pri" id="np">+ New Project</button>`);
   $('#np').onclick = () => editProject();
-  if ($('#ua')) $('#ua').onclick = () => uploadMany(pending.map(b=>b.uid));
 }
 
 function editProject(p){
@@ -277,13 +276,13 @@ async function viewProject(id){
   $('#dp').onclick = () => deleteProject(p);
   document.querySelectorAll('[data-b]').forEach(c=>c.onclick=()=>go({view:'bh', id:c.dataset.b}));
   const pend = bhs.filter(b=>!b.uploadedAt || b.updatedAt>b.uploadedAt);
-  setFab(`<button class="pri" id="nb">+ New Borehole</button>${pend.length?`<button class="acc" id="ua">☁ Upload (${pend.length})</button>`:''}`);
+  setFab(`<button class="pri" id="nb">+ New Borehole</button>${bhs.length?(pend.length?`<button class="acc" id="ua">☁ Upload Project (${pend.length} BH)</button>`:`<button id="ua" disabled>✓ Project uploaded</button>`):''}`);
   $('#nb').onclick = async () => {
     const next = 'BH-' + (bhs.length + 1);
     const b = {uid:uid(), projectUid:id, bhNo:next, dateStart:'', dateEnd:'', operator:'', helper:'', method:'Standard Penetration Test', weather:'', gps:null, spt:[], water:[], notes:'', createdAt:nowISO(), updatedAt:nowISO(), uploadedAt:null};
     await dbPut('boreholes', b); go({view:'bh', id:b.uid, tab:'info'});
   };
-  if ($('#ua')) $('#ua').onclick = () => uploadMany(pend.map(b=>b.uid));
+  if ($('#ua') && pend.length) $('#ua').onclick = () => uploadMany(pend.map(b=>b.uid));
 }
 
 async function deleteBH(bhUid){
@@ -305,8 +304,7 @@ async function viewBH(id, tab){
     <div id="tab"></div>`;
   $('#bk').onclick = e => { e.preventDefault(); go({view:'project', id:b.projectUid}); };
   document.querySelectorAll('[data-t]').forEach(x=>x.onclick=()=>go({view:'bh', id, tab:x.dataset.t}));
-  setFab(`<button class="acc" id="up">☁ Upload to Cloud</button>`);
-  $('#up').onclick = () => uploadMany([id]);
+  setFab('');
   if (tab==='info') tabInfo(b);
   if (tab==='spt') tabSPT(b);
   if (tab==='water') tabWater(b);
@@ -340,9 +338,8 @@ function tabSPT(b){
       <td>${esc(s.desc||'')}${s.color?`<div class="muted">${esc(s.color)}</div>`:''}</td></tr>`; }).join('')}</tbody></table>
     <p class="muted">Tap a row to edit.</p>` : `<div class="empty">No samples yet.<br>Tap <b>+ Add Sample</b> after each sample.</div>`;
   document.querySelectorAll('[data-s]').forEach(r=>r.onclick=()=>editSPT(b, b.spt.find(s=>s.uid===r.dataset.s)));
-  setFab(`<button class="pri" id="as">+ Add Sample</button><button class="acc" id="up">☁ Upload</button>`);
+  setFab(`<button class="pri" id="as">+ Add Sample</button>`);
   $('#as').onclick = () => editSPT(b);
-  $('#up').onclick = () => uploadMany([b.uid]);
 }
 async function editSPT(b, s){
   const isNew = !s;
@@ -433,9 +430,8 @@ function tabWater(b){
     ${rows.map(w=>`<tr data-w="${w.uid}" style="cursor:pointer"><td>${esc(w.type)}${w.remarks?`<div class="muted">${esc(w.remarks)}</div>`:''}</td><td class="n">${w.dry?'Dry':esc(w.depth)}</td><td>${fmtDT(w.dateTime)}</td></tr>`).join('')}</tbody></table>`
     : `<div class="empty">No water level readings yet.</div>`;
   document.querySelectorAll('[data-w]').forEach(r=>r.onclick=()=>editWater(b, b.water.find(w=>w.uid===r.dataset.w)));
-  setFab(`<button class="pri" id="aw">+ Add Reading</button><button class="acc" id="up">☁ Upload</button>`);
+  setFab(`<button class="pri" id="aw">+ Add Reading</button>`);
   $('#aw').onclick = () => editWater(b);
-  $('#up').onclick = () => uploadMany([b.uid]);
 }
 function editWater(b, w){
   const isNew = !w;
