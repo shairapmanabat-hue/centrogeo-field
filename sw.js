@@ -1,5 +1,5 @@
 /* CentroGeo Field Boring: keeps the app on the phone so it opens with no signal */
-const CACHE = 'cg-boring-v1.2.1';
+const CACHE = 'cg-boring-v1.3.0';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './logo-mark.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))); self.clients.claim(); });
