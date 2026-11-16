@@ -139,7 +139,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.5.1';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -842,13 +842,13 @@ async function uploadMany(ids){
     const b = await dbGet('boreholes', id); if (!b) continue;
     const p = await dbGet('projects', b.projectUid);
     const photos = await dbByIndex('photos','bh',id);
-    const todo = photos.filter(x=>!x.uploadedAt);
+    const todo = photos.filter(x=>!x.uploadedAt && x.kind!=='receipt'); // expenses stay on the phone, not sent to the Report Hub
     const total = 1 + todo.length; let step = 0;
     const bar = () => m.querySelector('#pb').style.width = Math.round(((done + step/total)/ids.length)*100)+'%';
     try {
       say(`${p?.name} · ${b.bhNo}: sending data`);
       const stamp = nowISO();
-      const res = await post({action:'saveBorehole', project:p, borehole:b, photoCount:photos.length, appVersion:APP_VERSION, uploadedBy:b.operator});
+      const res = await post({action:'saveBorehole', project:p, borehole:Object.assign({}, b, {expenses: undefined}), photoCount:photos.filter(x=>x.kind!=='receipt').length, appVersion:APP_VERSION, uploadedBy:b.operator});
       if (p.hubId !== res.hubProjectId){ p.hubId = res.hubProjectId; await dbPut('projects', p); }
       const bb = await dbGet('boreholes', id); bb.hubId = res.hubBoreholeId; await dbPut('boreholes', bb); b.hubId = bb.hubId;
       step++; bar();
