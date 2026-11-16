@@ -139,7 +139,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.5.2';
+const APP_VERSION = '1.5.3';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -255,6 +255,7 @@ async function render(){
   if (route.view==='home') return viewHome();
   if (route.view==='project') return viewProject(route.id);
   if (route.view==='bh') return viewBH(route.id, route.tab||'info');
+  if (route.view==='liq') return viewLiq(route.id);
 }
 
 /* ---------- Home: projects ---------- */
@@ -308,6 +309,7 @@ async function deleteProject(p){
   const bhs = await dbByIndex('boreholes','project',p.uid);
   if (!await confirmBox(`Delete project "${p.name}" and its ${bhs.length} borehole(s) from this phone? Already uploaded data stays in the cloud.`)) return;
   for (const b of bhs) await deleteBH(b.uid);
+  for (const ph of await dbByIndex('photos','bh','p:'+p.uid)) await dbDel('photos', ph.uid);
   await dbDel('projects', p.uid); toast('Project deleted'); go({view:'home'});
 }
 
@@ -315,10 +317,18 @@ async function deleteProject(p){
 async function viewProject(id){
   const p = await dbGet('projects', id); if(!p) return go({view:'home'});
   const bhs = (await dbByIndex('boreholes','project',id)).sort((a,b)=>a.bhNo.localeCompare(b.bhNo, undefined, {numeric:true}));
+  for (const b of bhs) if ((b.expenses||[]).length || (b.cash||[]).length) {
+    p.expenses = (p.expenses||[]).concat(b.expenses||[]); p.cash = (p.cash||[]).concat(b.cash||[]);
+    for (const ph of await dbByIndex('photos','bh',b.uid)) if (ph.kind==='receipt') { ph.bhUid = 'p:'+p.uid; await dbPut('photos', ph); }
+    delete b.expenses; delete b.cash; await dbPut('boreholes', b); await dbPut('projects', p);
+  }
   $('#app').innerHTML = `
     <div class="crumb"><a href="#" id="bk">‹ Projects</a></div>
     <div class="row"><h2 class="grow">${esc(p.name)}</h2><button class="sm" id="ep" style="flex:none">Edit</button><button class="sm danger" id="dp" style="flex:none">Delete</button></div>
     <div class="muted">${esc(p.client||'')}${p.client&&p.location?' · ':''}${esc(p.location||'')}</div>
+    ${(()=>{ const got=(p.cash||[]).reduce((t,c)=>t+(Number(c.amount)||0),0), spent=(p.expenses||[]).reduce((t,e)=>t+(Number(e.amount)||0),0), bal=got-spent;
+      return `<div class="card tap row" id="liq" style="margin-top:12px"><div><b>💰 Liquidation</b><div class="muted">Petty cash ${peso(got)} · Expenses ${peso(spent)}</div></div>
+        <div style="flex:none;text-align:right"><div class="muted">${bal<0?'Over':'Balance'}</div><b style="color:${bal<0?'var(--bad)':'var(--ok)'}">${peso(Math.abs(bal))}</b></div></div>`; })()}
     <h3>Boreholes</h3>
     ${bhs.length ? bhs.map(b=>{
       const last = b.spt.length ? Math.max(...b.spt.map(s=>num(s.to)||0)) : 0;
@@ -328,6 +338,7 @@ async function viewProject(id){
     }).join('') : `<div class="empty">No boreholes yet.</div>`}`;
   $('#bk').onclick = e => { e.preventDefault(); go({view:'home'}); };
   $('#ep').onclick = () => editProject(p);
+  $('#liq').onclick = () => go({view:'liq', id:p.uid});
   $('#dp').onclick = () => deleteProject(p);
   document.querySelectorAll('[data-b]').forEach(c=>c.onclick=()=>go({view:'bh', id:c.dataset.b}));
   const pend = bhs.filter(b=>!b.uploadedAt || b.updatedAt>b.uploadedAt);
@@ -355,7 +366,7 @@ async function viewBH(id, tab){
   $('#app').innerHTML = `
     <div class="crumb"><a href="#" id="bk">‹ ${esc(p?.name||'Project')}</a></div>
     <div class="row"><h2 class="grow">${esc(b.bhNo)}</h2><div style="flex:none">${status(b)}</div></div>
-    <div class="tabs">${T('info','Info')}${T('spt',`Samples (${b.spt.length})`)}${T('water',`Water${b.water.length?' ✓':''}`)}${T('photos',`Photos (${photos.filter(x=>x.reqKey!=='water'&&x.kind!=='receipt').length})`)}${T('exp','Liquidation')}</div>
+    <div class="tabs">${T('info','Info')}${T('spt',`Samples (${b.spt.length})`)}${T('water',`Water${b.water.length?' ✓':''}`)}${T('photos',`Photos (${photos.filter(x=>x.reqKey!=='water'&&x.kind!=='receipt').length})`)}</div>
     <div id="tab"></div>`;
   $('#bk').onclick = e => { e.preventDefault(); go({view:'project', id:b.projectUid}); };
   document.querySelectorAll('[data-t]').forEach(x=>x.onclick=()=>go({view:'bh', id, tab:x.dataset.t}));
@@ -365,7 +376,6 @@ async function viewBH(id, tab){
   if (tab==='water') { tabWater(b); const d = document.createElement('div'); d.id = 'wphoto'; $('#tab').appendChild(d);
     tabPhotos(b, p, photos, {keys:['water'], tab:'water', target:'#wphoto', title:'Water level photo'}); }
   if (tab==='photos') tabPhotos(b, p, photos);
-  if (tab==='exp') tabExpenses(b, photos);
 }
 
 function tabInfo(b){
@@ -544,7 +554,7 @@ async function receiptImage(file){
   x.translate(c.width/2, c.height/2); x.rotate(rot*Math.PI/180); x.drawImage(src, -w/2, -h/2, w, h); if (src.close) src.close();
   return c.toDataURL('image/jpeg', 0.8);
 }
-function tabExpenses(b, photos){
+function tabExpenses(b, photos, ctx){
   const list = b.expenses || [], cash = b.cash || [];
   const pic = e => photos.find(x => x.kind==='receipt' && x.expUid===e.uid);
   const spent = list.reduce((t,e)=>t+(Number(e.amount)||0),0), got = cash.reduce((t,c)=>t+(Number(c.amount)||0),0), bal = got - spent;
@@ -565,13 +575,13 @@ function tabExpenses(b, photos){
       <div style="flex:none;font-weight:700">${peso(e.amount)}</div></div>`; }).join('')
       : `<div class="muted">No expenses yet. Tap <b>+ Expense</b> for fuel, food, materials, etc.</div>`}
     <p class="muted">Tap an entry to edit it.</p>`;
-  document.querySelectorAll('[data-e]').forEach(r => r.onclick = () => editExpense(b, list.find(e=>e.uid===r.dataset.e), photos));
-  document.querySelectorAll('[data-c]').forEach(r => r.onclick = () => editCash(b, cash.find(c=>c.uid===r.dataset.c)));
+  document.querySelectorAll('[data-e]').forEach(r => r.onclick = () => editExpense(b, list.find(e=>e.uid===r.dataset.e), photos, ctx));
+  document.querySelectorAll('[data-c]').forEach(r => r.onclick = () => editCash(b, cash.find(c=>c.uid===r.dataset.c), ctx));
   setFab(`<button id="ac">+ Cash Received</button><button class="pri" id="ae">+ Expense</button>`);
-  $('#ae').onclick = () => editExpense(b, null, photos);
-  $('#ac').onclick = () => editCash(b, null);
+  $('#ae').onclick = () => editExpense(b, null, photos, ctx);
+  $('#ac').onclick = () => editCash(b, null, ctx);
 }
-function editCash(b, c){
+function editCash(b, c, ctx){
   const isNew = !c; c = c || {uid:uid(), amount:'', from:'', date:nowISO()};
   const m = modal(`<h2>${isNew?'Add':'Edit'} Petty Cash</h2>
     <label>Amount received (₱) *</label><input id="ca" type="number" step="0.01" inputmode="decimal" value="${esc(c.amount)}" placeholder="0.00">
@@ -583,12 +593,12 @@ function editCash(b, c){
     const amt = q('#ca').value.trim(); if (num(amt)===null) return toast('Enter the amount');
     Object.assign(c, {amount:amt, from:q('#cf').value.trim()});
     b.cash = b.cash || []; if (isNew) b.cash.push(c);
-    await touch(b); m.remove(); toast('Petty cash saved'); go({view:'bh', id:b.uid, tab:'exp'});
+    await ctx.save(); m.remove(); toast('Petty cash saved'); ctx.back();
   };
   if (!isNew) q('#cdel').onclick = async () => { if (!await confirmBox('Delete this petty cash entry?')) return;
-    b.cash = (b.cash||[]).filter(x=>x.uid!==c.uid); await touch(b); m.remove(); toast('Deleted'); go({view:'bh', id:b.uid, tab:'exp'}); };
+    b.cash = (b.cash||[]).filter(x=>x.uid!==c.uid); await ctx.save(); m.remove(); toast('Deleted'); ctx.back(); };
 }
-function editExpense(b, e, photos){
+function editExpense(b, e, photos, ctx){
   const isNew = !e;
   e = e || {uid:uid(), desc:'', amount:'', date:nowISO()};
   const old = photos.find(x => x.kind==='receipt' && x.expUid===e.uid);
@@ -617,18 +627,27 @@ function editExpense(b, e, photos){
     b.expenses = b.expenses || []; if (isNew) b.expenses.push(e);
     if (changed) {
       if (old) await dbDel('photos', old.uid);
-      if (img) { e.photoUid = uid(); await dbPut('photos', {uid:e.photoUid, bhUid:b.uid, kind:'receipt', expUid:e.uid, category:'Expense receipt', caption:`${desc} - ${peso(amt)}`, data:img, lat:null, lng:null, takenAt:nowISO(), uploadedAt:null}); }
+      if (img) { e.photoUid = uid(); await dbPut('photos', {uid:e.photoUid, bhUid:ctx.key, kind:'receipt', expUid:e.uid, category:'Expense receipt', caption:`${desc} - ${peso(amt)}`, data:img, lat:null, lng:null, takenAt:nowISO(), uploadedAt:null}); }
       else delete e.photoUid;
     } else if (old && old.caption !== `${desc} - ${peso(amt)}`) { old.caption = `${desc} - ${peso(amt)}`; old.uploadedAt = null; await dbPut('photos', old); }
-    await touch(b); m.remove(); toast('Expense saved'); go({view:'bh', id:b.uid, tab:'exp'});
+    await ctx.save(); m.remove(); toast('Expense saved'); ctx.back();
   };
   if (!isNew) q('#xdel').onclick = async () => {
     if (!await confirmBox(`Delete expense "${e.desc}"?`)) return;
     b.expenses = (b.expenses||[]).filter(x => x.uid !== e.uid); if (old) await dbDel('photos', old.uid);
-    await touch(b); m.remove(); toast('Expense deleted'); go({view:'bh', id:b.uid, tab:'exp'});
+    await ctx.save(); m.remove(); toast('Expense deleted'); ctx.back();
   };
 }
 
+/* Liquidation is per project: petty cash received, expenses, balance */
+async function viewLiq(id){
+  const p = await dbGet('projects', id); if (!p) return go({view:'home'});
+  const key = 'p:' + p.uid;
+  const photos = await dbByIndex('photos','bh',key);
+  $('#app').innerHTML = `<div class="crumb"><a href="#" id="bk">‹ ${esc(p.name)}</a></div><h2>Liquidation</h2><div id="tab"></div>`;
+  $('#bk').onclick = ev => { ev.preventDefault(); go({view:'project', id:p.uid}); };
+  tabExpenses(p, photos, {key, save: async () => { p.updatedAt = nowISO(); await dbPut('projects', p); }, back: () => go({view:'liq', id:p.uid})});
+}
 /* ----- Photos (compressed + GPS/time stamped on the image) ----- */
 const PHOTO_TYPES = ['Whiteboard / SPT log','Borehole location','Drilling rig','Soil sample','Site / surroundings','Other'];
 /* Required photo list — add more items here later */
@@ -876,7 +895,7 @@ async function uploadMany(ids){
     try {
       say(`${p?.name} · ${b.bhNo}: sending data`);
       const stamp = nowISO();
-      const res = await post({action:'saveBorehole', project:p, borehole:Object.assign({}, b, {expenses: undefined, cash: undefined}), photoCount:photos.filter(x=>x.kind!=='receipt').length, appVersion:APP_VERSION, uploadedBy:b.operator});
+      const res = await post({action:'saveBorehole', project:Object.assign({}, p, {expenses: undefined, cash: undefined}), borehole:Object.assign({}, b, {expenses: undefined, cash: undefined}), photoCount:photos.filter(x=>x.kind!=='receipt').length, appVersion:APP_VERSION, uploadedBy:b.operator});
       if (p.hubId !== res.hubProjectId){ p.hubId = res.hubProjectId; await dbPut('projects', p); }
       const bb = await dbGet('boreholes', id); bb.hubId = res.hubBoreholeId; await dbPut('boreholes', bb); b.hubId = bb.hubId;
       step++; bar();
