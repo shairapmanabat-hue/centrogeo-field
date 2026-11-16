@@ -21,6 +21,7 @@
   .net{font-size:11px;padding:3px 8px;border-radius:99px;background:#eef1f6;color:var(--muted);white-space:nowrap}
   .net.on{background:#e3f5ea;color:var(--ok)}
   main{max-width:720px;margin:0 auto;padding:14px 14px 110px}
+
   /* On a computer or tablet, show the app in a phone-sized frame (phones are unchanged) */
   @media (min-width:600px){
     html{background:#e9edf3;height:100%}
@@ -85,6 +86,38 @@
   .prog i{display:block;height:100%;background:var(--orange);width:0;transition:width .2s}
   .check{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px}
   .check input{width:auto}
+
+  /* ===== GEO5-style engineering theme ===== */
+  :root{--navy:#1d3f73;--line:#c3ccd7;--muted:#566275}
+  html,body{font-family:"Segoe UI",Roboto,Tahoma,Arial,sans-serif;font-size:14px}
+  body{background:#e6e9ee}
+  header{background:linear-gradient(#24497f,#1a3866);border-bottom:1px solid #102647;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  header .ttl b{color:#fff} header .ttl small{color:#c9d6ea}
+  header .logo{background:#fff;border-radius:2px;padding:2px}
+  .net{border-radius:2px;background:rgba(255,255,255,.15);color:#dfe8f5}
+  .net.on{background:#2e8b57;color:#fff}
+  h2{font-size:16px;font-weight:600}
+  h3{color:#1d3f73;font-weight:600;letter-spacing:.4px}
+  .card{border-radius:2px;border-color:var(--line);box-shadow:0 1px 1px rgba(16,38,71,.06);padding:10px 12px;margin-bottom:8px}
+  .card.tap:active{background:#e3eefb}
+  input,select,textarea{border-radius:2px;border-color:#a9b5c3}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:#1a5fb4;box-shadow:0 0 0 1px #1a5fb4 inset}
+  button{border-radius:2px;border:1px solid #9eabbb;background:linear-gradient(#ffffff,#e8ecf1);color:#1a2433}
+  button.pri{background:linear-gradient(#2a5596,#1d3f73);border-color:#14305a;color:#fff}
+  button.acc{background:linear-gradient(#f07a3c,#e2591a);border-color:#b8460f;color:#fff}
+  button.danger{background:#fff;border-color:#e0a49e;color:var(--bad)}
+  .badge{border-radius:2px}
+  .tabs{background:#eef1f5;border:1px solid var(--line);gap:0;margin:8px 0 10px}
+  .tabs button{border:0;border-right:1px solid var(--line);background:none;border-bottom:0;padding:9px 12px}
+  .tabs button.on{background:#fff;color:#1d3f73;box-shadow:inset 0 3px 0 #1d3f73}
+  table{background:#fff;border:1px solid var(--line)}
+  th{background:linear-gradient(#f6f7f9,#dfe4ea);color:#1a2433;font-size:11.5px;border:1px solid #c3ccd7;padding:6px}
+  td{border:1px solid #dde3ea;padding:6px}
+  .fab{background:#eef1f5;border-top:1px solid var(--line)}
+  .ph{border-radius:2px}
+  .nbox{border-radius:2px;background:#e8f1fb;border:1px solid #b9cde6}
+  .sheet{border-radius:4px 4px 0 0}
+  .toast{border-radius:2px}
 </style>
 </head>
 <body>
@@ -110,7 +143,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.1.2';
+const APP_VERSION = '1.2.0';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
