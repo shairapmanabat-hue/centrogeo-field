@@ -139,7 +139,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.3.5';
+const APP_VERSION = '1.3.6';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -192,7 +192,23 @@ function setFab(html){ const f=$('#fab'); if(!html){ f.style.display='none'; ret
 function modal(html){
   const m=document.createElement('div'); m.className='modal'; m.innerHTML=`<div class="sheet">${html}</div>`;
   m.addEventListener('click', e => { if(e.target===m) m.remove(); });
-  document.body.appendChild(m); return m;
+  document.body.appendChild(m);
+  // Keep what was typed even if the phone reloads the app (e.g. after switching to another app)
+  const title = (m.querySelector('h2')||{}).textContent || '', key = 'cg_draft:' + title;
+  const fields = () => [...m.querySelectorAll('input[id],select[id],textarea[id]')].filter(el => el.type!=='file' && el.type!=='password');
+  if (title) {
+    try { const d = JSON.parse(localStorage.getItem(key)||'null');
+      if (d) setTimeout(() => fields().forEach(el => { if (!(el.id in d)) return;
+        if (el.type==='checkbox') el.checked = d[el.id]; else el.value = d[el.id];
+        el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); }), 0);
+    } catch(e){}
+    const save = () => { try { const d = {}; fields().forEach(el => d[el.id] = el.type==='checkbox' ? el.checked : el.value);
+      localStorage.setItem(key, JSON.stringify(d)); localStorage.setItem('cg_draft_open', title); } catch(e){} };
+    m.addEventListener('input', save); m.addEventListener('change', save);
+    const rm = m.remove.bind(m);
+    m.remove = () => { try { localStorage.removeItem(key); if (localStorage.getItem('cg_draft_open')===title) localStorage.removeItem('cg_draft_open'); } catch(e){} rm(); };
+  }
+  return m;
 }
 function confirmBox(msg){ return new Promise(res => { const m=modal(`<p>${esc(msg)}</p><div class="acts"><button data-a="n">Cancel</button><button class="danger" data-a="y">Yes, delete</button></div>`); m.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{ m.remove(); res(b.dataset.a==='y'); }); }); }
 function askPassword(msg){ return new Promise(res => {
@@ -798,12 +814,13 @@ function adminSettings(){
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); window._cgInstall = e; if (typeof render === 'function') try { render(); } catch(x){} });
 updateNet();
 window.addEventListener('online', verifyHub);
-openDB().then(() => { if (!S.hubToken) showGate(); else { render(); verifyHub(); } }).catch(e => { $('#app').innerHTML = `<div class="empty">Phone storage is not available: ${esc(e.message)}</div>`; });
+openDB().then(async () => { if (!S.hubToken) showGate(); else { await render(); verifyHub();
+  try { if (localStorage.getItem('cg_draft_open')==='New Project') editProject(); } catch(e){} } }).catch(e => { $('#app').innerHTML = `<div class="empty">Phone storage is not available: ${esc(e.message)}</div>`; });
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   // Always check for a new version, and switch to it as soon as it's installed
   navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).then(r => r.update()).catch(()=>{});
   let reloaded = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded) { reloaded = true; location.reload(); } });
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded && !document.querySelector('.modal')) { reloaded = true; location.reload(); } });
 }
 </script>
 </body>
