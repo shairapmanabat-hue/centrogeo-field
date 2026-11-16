@@ -108,7 +108,7 @@
   button.danger{background:#fff;border-color:#e0a49e;color:var(--bad)}
   .badge{border-radius:2px}
   .tabs{background:#eef1f5;border:1px solid var(--line);gap:0;margin:8px 0 10px}
-  .tabs button{border:0;border-right:1px solid var(--line);background:none;border-bottom:0;padding:9px 12px}
+  .tabs button{border:0;border-right:1px solid var(--line);background:none;border-bottom:0;padding:9px 9px;font-size:12.5px;flex:1 0 auto}
   .tabs button.on{background:#fff;color:#1d3f73;box-shadow:inset 0 3px 0 #1d3f73}
   table{background:#fff;border:1px solid var(--line)}
   th{background:linear-gradient(#f6f7f9,#dfe4ea);color:#1a2433;font-size:11.5px;border:1px solid #c3ccd7;padding:6px}
@@ -139,7 +139,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.4.3';
+const APP_VERSION = '1.5.0';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -355,7 +355,7 @@ async function viewBH(id, tab){
   $('#app').innerHTML = `
     <div class="crumb"><a href="#" id="bk">‹ ${esc(p?.name||'Project')}</a></div>
     <div class="row"><h2 class="grow">${esc(b.bhNo)}</h2><div style="flex:none">${status(b)}</div></div>
-    <div class="tabs">${T('info','Info')}${T('spt',`Samples (${b.spt.length})`)}${T('water',`Water${b.water.length?' ✓':''}`)}${T('photos',`Photos (${photos.filter(x=>x.reqKey!=='water').length})`)}</div>
+    <div class="tabs">${T('info','Info')}${T('spt',`Samples (${b.spt.length})`)}${T('water',`Water${b.water.length?' ✓':''}`)}${T('photos',`Photos (${photos.filter(x=>x.reqKey!=='water'&&x.kind!=='receipt').length})`)}${T('exp',`Expenses (${(b.expenses||[]).length})`)}</div>
     <div id="tab"></div>`;
   $('#bk').onclick = e => { e.preventDefault(); go({view:'project', id:b.projectUid}); };
   document.querySelectorAll('[data-t]').forEach(x=>x.onclick=()=>go({view:'bh', id, tab:x.dataset.t}));
@@ -365,6 +365,7 @@ async function viewBH(id, tab){
   if (tab==='water') { tabWater(b); const d = document.createElement('div'); d.id = 'wphoto'; $('#tab').appendChild(d);
     tabPhotos(b, p, photos, {keys:['water'], tab:'water', target:'#wphoto', title:'Water level photo'}); }
   if (tab==='photos') tabPhotos(b, p, photos);
+  if (tab==='exp') tabExpenses(b, photos);
 }
 
 function tabInfo(b){
@@ -530,6 +531,74 @@ function editWater(b, w){
     await touch(b); m.remove(); toast('Water level saved'); go({view:'bh', id:b.uid, tab:'water'});
   };
   if (!isNew) q('#del').onclick = async () => { b.water = b.water.filter(x=>x.uid!==w.uid); await touch(b); m.remove(); toast('Reading deleted'); go({view:'bh', id:b.uid, tab:'water'}); };
+}
+
+
+/* ----- Expenses (description, amount, receipt photo) ----- */
+const peso = n => '₱' + (Number(n)||0).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
+async function receiptImage(file){
+  const {src, w:W0, h:H0, orient} = await loadUpright(file);
+  const sc = Math.min(1, 1400/Math.max(W0,H0)); const w = Math.round(W0*sc), h = Math.round(H0*sc);
+  const rot = ({3:180,4:180,5:90,6:90,7:270,8:270}[orient]||0), side = rot===90||rot===270;
+  const c = document.createElement('canvas'); c.width = side?h:w; c.height = side?w:h; const x = c.getContext('2d');
+  x.translate(c.width/2, c.height/2); x.rotate(rot*Math.PI/180); x.drawImage(src, -w/2, -h/2, w, h); if (src.close) src.close();
+  return c.toDataURL('image/jpeg', 0.8);
+}
+function tabExpenses(b, photos){
+  const list = b.expenses || [];
+  const pic = e => photos.find(x => x.kind==='receipt' && x.expUid===e.uid);
+  const total = list.reduce((t,e)=>t+(Number(e.amount)||0),0);
+  $('#tab').innerHTML = list.length ? `
+    <div class="card row" style="font-weight:600"><span>Total</span><span style="flex:none;color:var(--navy)">${peso(total)}</span></div>
+    ${list.map(e=>{ const ph = pic(e); return `<div class="card tap row" data-e="${e.uid}">
+      ${ph?`<img src="${ph.data}" style="flex:none;width:52px;height:52px;object-fit:cover;border:1px solid var(--line)">`:`<div style="flex:none;width:52px;height:52px;border:1px dashed var(--line);display:grid;place-items:center" class="muted">No<br>photo</div>`}
+      <div><b>${esc(e.desc)}</b><div class="muted">${e.date?fmtDT(e.date):''}</div></div>
+      <div style="flex:none;font-weight:700">${peso(e.amount)}</div></div>`; }).join('')}
+    <p class="muted">Tap an expense to edit it.</p>`
+    : `<div class="empty">No expenses yet.<br>Tap <b>+ Add Expense</b> for fuel, food, materials, etc.</div>`;
+  document.querySelectorAll('[data-e]').forEach(r => r.onclick = () => editExpense(b, list.find(e=>e.uid===r.dataset.e), photos));
+  setFab(`<button class="pri" id="ae">+ Add Expense</button>`);
+  $('#ae').onclick = () => editExpense(b, null, photos);
+}
+function editExpense(b, e, photos){
+  const isNew = !e;
+  e = e || {uid:uid(), desc:'', amount:'', date:nowISO()};
+  const old = photos.find(x => x.kind==='receipt' && x.expUid===e.uid);
+  let img = old ? old.data : null, changed = false;
+  const m = modal(`<h2>${isNew?'Add':'Edit'} Expense</h2>
+    <label>Description *</label><input id="xd" value="${esc(e.desc)}" placeholder="e.g. Diesel for drilling rig">
+    <label>Amount (₱) *</label><input id="xa" type="number" step="0.01" inputmode="decimal" value="${esc(e.amount)}" placeholder="0.00">
+    <label>Receipt / photo</label>
+    <div id="xp"></div>
+    <div class="row" style="margin-top:8px"><button id="xc">📷 Take Photo</button><button id="xg">🖼 Gallery</button></div>
+    <input type="file" id="xcam" accept="image/*" capture="environment" hidden><input type="file" id="xgal" accept="image/*" hidden>
+    <div class="acts">${isNew?'':'<button class="danger" id="xdel">Delete</button>'}<button id="cx">Cancel</button><button class="pri" id="ok">Save</button></div>`);
+  const q = s => m.querySelector(s);
+  const show = () => q('#xp').innerHTML = img ? `<img src="${img}" style="width:100%;max-height:240px;object-fit:contain;background:#f2f4f7;border:1px solid var(--line)"><button class="sm" id="xrm" style="margin-top:6px">Remove photo</button>` : `<div class="muted">No photo yet.</div>`;
+  const bindRm = () => { if (q('#xrm')) q('#xrm').onclick = () => { img = null; changed = true; show(); bindRm(); }; };
+  show(); bindRm();
+  const pick = async ev => { const f = ev.target.files[0]; ev.target.value=''; if (!f) return; toast('Processing photo…');
+    try { img = await receiptImage(f); changed = true; show(); bindRm(); } catch(err){ toast('Could not read that photo'); } };
+  q('#xc').onclick = () => q('#xcam').click(); q('#xg').onclick = () => q('#xgal').click();
+  q('#xcam').onchange = pick; q('#xgal').onchange = pick;
+  q('#cx').onclick = () => m.remove();
+  q('#ok').onclick = async () => {
+    const desc = q('#xd').value.trim(), amt = q('#xa').value.trim();
+    if (!desc) return toast('Enter a description'); if (num(amt)===null) return toast('Enter the amount');
+    Object.assign(e, {desc, amount: amt});
+    b.expenses = b.expenses || []; if (isNew) b.expenses.push(e);
+    if (changed) {
+      if (old) await dbDel('photos', old.uid);
+      if (img) { e.photoUid = uid(); await dbPut('photos', {uid:e.photoUid, bhUid:b.uid, kind:'receipt', expUid:e.uid, category:'Expense receipt', caption:`${desc} - ${peso(amt)}`, data:img, lat:null, lng:null, takenAt:nowISO(), uploadedAt:null}); }
+      else delete e.photoUid;
+    } else if (old && old.caption !== `${desc} - ${peso(amt)}`) { old.caption = `${desc} - ${peso(amt)}`; old.uploadedAt = null; await dbPut('photos', old); }
+    await touch(b); m.remove(); toast('Expense saved'); go({view:'bh', id:b.uid, tab:'exp'});
+  };
+  if (!isNew) q('#xdel').onclick = async () => {
+    if (!await confirmBox(`Delete expense "${e.desc}"?`)) return;
+    b.expenses = (b.expenses||[]).filter(x => x.uid !== e.uid); if (old) await dbDel('photos', old.uid);
+    await touch(b); m.remove(); toast('Expense deleted'); go({view:'bh', id:b.uid, tab:'exp'});
+  };
 }
 
 /* ----- Photos (compressed + GPS/time stamped on the image) ----- */
