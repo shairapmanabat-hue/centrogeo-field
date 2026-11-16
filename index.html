@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#233A63">
+<title>CentroGeo Field Boring</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{--navy:#233A63;--orange:#FF5A1F;--lorange:#FF8A4C;--tan:#A88B74;--brown:#4A3328;--sky:#DDF4FB;
+    --bg:#fff;--line:#e3e7ee;--muted:#6b7487;--ok:#1f8f4e;--warn:#c77700;--bad:#c62828}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:#1b2333;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  header{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:10px 14px}
+  header .logo{width:30px;height:30px;flex:none;cursor:pointer;user-select:none}
+  header .ttl{flex:1;min-width:0}
+  header .ttl b{display:block;color:var(--navy);font-size:15px;letter-spacing:.5px}
+  header .ttl small{color:var(--muted);font-size:11px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .net{font-size:11px;padding:3px 8px;border-radius:99px;background:#eef1f6;color:var(--muted);white-space:nowrap}
+  .net.on{background:#e3f5ea;color:var(--ok)}
+  main{max-width:720px;margin:0 auto;padding:14px 14px 110px}
+  h2{font-size:17px;color:var(--navy);margin:6px 0 12px}
+  h3{font-size:11.5px;color:var(--navy);margin:16px 0 6px;text-transform:uppercase;letter-spacing:.8px}
+  .crumb{color:var(--muted);font-size:13px;margin-bottom:6px}
+  .crumb a{color:var(--navy);text-decoration:none;font-weight:600}
+  .card{border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:10px;background:#fff}
+  .card.tap{cursor:pointer}
+  .card.tap:active{background:#f6f8fb}
+  .row{display:flex;gap:10px;align-items:center}
+  .row>*{flex:1;min-width:0}
+  .grow{flex:1}
+  .muted{color:var(--muted);font-size:12px}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;font-weight:500}
+  input,select,textarea{width:100%;font:inherit;font-size:14px;padding:9px 11px;border:1px solid #cfd6e2;border-radius:10px;background:#fff;color:inherit}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--sky);border-color:var(--navy)}
+  textarea{min-height:70px;resize:vertical}
+  button{font:inherit;font-size:14px;border:0;border-radius:10px;padding:10px 14px;background:#eef1f6;color:var(--navy);font-weight:600;cursor:pointer}
+  button:active{transform:translateY(1px)}
+  button.pri{background:var(--navy);color:#fff}
+  button.acc{background:var(--orange);color:#fff}
+  button.danger{background:#fdecea;color:var(--bad)}
+  button.sm{padding:6px 10px;font-size:12.5px}
+  button:disabled{opacity:.5}
+  .full{width:100%}
+  .badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;letter-spacing:.3px}
+  .b-new{background:#fff3e0;color:var(--warn)}
+  .b-ok{background:#e3f5ea;color:var(--ok)}
+  .b-chg{background:#fdecea;color:var(--bad)}
+  .tabs{display:flex;gap:6px;overflow-x:auto;margin:8px 0 12px;border-bottom:1px solid var(--line)}
+  .tabs button{background:none;border-radius:0;font-size:13px;padding:9px 10px;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap}
+  .tabs button.on{color:var(--navy);border-bottom-color:var(--orange)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{border-bottom:1px solid var(--line);padding:7px 4px;text-align:left;vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:11px}
+  .n{font-weight:700;color:var(--navy);font-size:14px}
+  .fab{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;gap:10px;z-index:6}
+  .fab>div{max-width:720px;margin:0 auto;display:flex;gap:10px;width:100%}
+  .fab button{flex:1;padding:12px}
+  .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+  .ph{border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative;background:#f5f7fa}
+  .ph img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+  .ph .cap{padding:6px 8px;font-size:12px}
+  .ph .del{position:absolute;top:4px;right:4px;background:rgba(255,255,255,.9);padding:4px 8px;font-size:12px}
+  .ph .up{position:absolute;top:4px;left:4px}
+  .blows{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .blows input{text-align:center;font-size:16px;font-weight:600}
+  .nbox{background:var(--sky);border-radius:10px;padding:10px;text-align:center;margin-top:10px}
+  .nbox b{font-size:20px;color:var(--navy)}
+  .modal{position:fixed;inset:0;background:rgba(20,28,45,.45);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+  .sheet{background:#fff;width:100%;max-width:720px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom))}
+  .sheet .acts{display:flex;gap:10px;margin-top:16px}
+  .sheet .acts button{flex:1;padding:11px}
+  .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#1b2333;color:#fff;padding:9px 14px;border-radius:10px;z-index:40;font-size:13px;max-width:90%;text-align:center}
+  .gps{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;background:#f5f7fa;border-radius:8px;padding:8px 10px}
+  .empty{text-align:center;color:var(--muted);padding:30px 10px}
+  .prog{height:8px;background:#eef1f6;border-radius:99px;overflow:hidden;margin-top:8px}
+  .prog i{display:block;height:100%;background:var(--orange);width:0;transition:width .2s}
+  .check{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px}
+  .check input{width:auto}
+</style>
+</head>
+<body>
+<header>
+  <svg class="logo" id="logo" viewBox="0 0 64 64" title="Double-tap for admin settings">
+    <defs><clipPath id="c"><circle cx="32" cy="32" r="30"/></clipPath></defs>
+    <g clip-path="url(#c)">
+      <rect width="64" height="64" fill="#FF8A4C"/>
+      <path d="M0 22 Q16 16 32 22 T64 22 V64 H0Z" fill="#FF5A1F"/>
+      <path d="M0 36 Q16 30 32 36 T64 36 V64 H0Z" fill="#A88B74"/>
+      <path d="M0 49 Q16 43 32 49 T64 49 V64 H0Z" fill="#4A3328"/>
+    </g>
+  </svg>
+  <div class="ttl"><b>CENTROGEO</b><small id="who">Field Boring</small></div>
+  <span class="net" id="net">Offline</span>
+</header>
+<main id="app"></main>
+<div class="fab" id="fab" style="display:none"><div id="fabIn"></div></div>
+
+<script>
+/* =========================================================
+   CentroGeo Field Boring — offline-first field data app
+   Data is stored on the phone (IndexedDB). Nothing leaves the
+   phone until the operator taps "Upload to Cloud".
+   ========================================================= */
+const APP_VERSION = '1.1.0';
+const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const nowISO = () => new Date().toISOString();
+const fmtDT = iso => { if(!iso) return ''; const d = new Date(iso); return d.toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}); };
+const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset()*60000).toISOString().slice(0,10); };
+const num = v => (v === '' || v === null || v === undefined || isNaN(+v)) ? null : +v;
+
+/* ---------- Settings (localStorage, wrapped) ---------- */
+const DEFAULT_SETTINGS = { operators: ['Operator 1','Operator 2'], me: '', cloudUrl: '', appKey: '', hubToken: '', hubName: '', adminPin: '1234', depthStep: 1.5 };
+function loadSettings(){ try { return Object.assign({}, DEFAULT_SETTINGS, JSON.parse(localStorage.getItem('cg_settings')||'{}')); } catch(e){ return {...DEFAULT_SETTINGS}; } }
+function saveSettings(){ try { localStorage.setItem('cg_settings', JSON.stringify(S)); } catch(e){} }
+let S = loadSettings();
+
+/* ---------- IndexedDB ---------- */
+let DB;
+function openDB(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('cg_field_boring', 1);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      d.createObjectStore('projects', {keyPath:'uid'});
+      const b = d.createObjectStore('boreholes', {keyPath:'uid'}); b.createIndex('project','projectUid');
+      const p = d.createObjectStore('photos', {keyPath:'uid'}); p.createIndex('bh','bhUid');
+    };
+    r.onsuccess = () => { DB = r.result; res(); };
+    r.onerror = () => rej(r.error);
+  });
+}
+function tx(store, mode, fn){
+  return new Promise((res, rej) => {
+    const t = DB.transaction(store, mode); const s = t.objectStore(store);
+    let out; const r = fn(s); if (r) r.onsuccess = () => out = r.result;
+    t.oncomplete = () => res(out); t.onerror = () => rej(t.error);
+  });
+}
+const dbAll = (store) => tx(store,'readonly', s => s.getAll());
+const dbGet = (store, key) => tx(store,'readonly', s => s.get(key));
+const dbPut = (store, obj) => tx(store,'readwrite', s => s.put(obj));
+const dbDel = (store, key) => tx(store,'readwrite', s => s.delete(key));
+const dbByIndex = (store, idx, key) => tx(store,'readonly', s => s.index(idx).getAll(key));
+
+/* Ask browser to keep our data (not auto-cleared) */
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+
+/* ---------- UI helpers ---------- */
+function toast(msg, ms=2200){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), ms); }
+function setFab(html){ const f=$('#fab'); if(!html){ f.style.display='none'; return; } $('#fabIn').innerHTML=html; f.style.display='block'; }
+function modal(html){
+  const m=document.createElement('div'); m.className='modal'; m.innerHTML=`<div class="sheet">${html}</div>`;
+  m.addEventListener('click', e => { if(e.target===m) m.remove(); });
+  document.body.appendChild(m); return m;
+}
+function confirmBox(msg){ return new Promise(res => { const m=modal(`<p>${esc(msg)}</p><div class="acts"><button data-a="n">Cancel</button><button class="danger" data-a="y">Yes, delete</button></div>`); m.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{ m.remove(); res(b.dataset.a==='y'); }); }); }
+function askPassword(msg){ return new Promise(res => {
+  const m=modal(`<h2>Password required</h2><p>${esc(msg)}</p><label>Password</label><input id="pw" type="password" inputmode="numeric" autocomplete="off">
+    <div class="acts"><button data-a="n">Cancel</button><button class="danger" data-a="y">Delete</button></div>`);
+  const pw=m.querySelector('#pw'); setTimeout(()=>pw.focus(),50);
+  m.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{
+    if (b.dataset.a==='n'){ m.remove(); return res(false); }
+    if (pw.value===S.adminPin){ m.remove(); res(true); } else { toast('Wrong password'); pw.value=''; }
+  });
+}); }
+function status(bh){
+  if (!bh.uploadedAt) return '<span class="badge b-new">NOT UPLOADED</span>';
+  if (bh.updatedAt > bh.uploadedAt) return '<span class="badge b-chg">CHANGED – UPLOAD AGAIN</span>';
+  return '<span class="badge b-ok">UPLOADED</span>';
+}
+function updateNet(){ const n=$('#net'); n.textContent = navigator.onLine ? 'Online' : 'Offline'; n.classList.toggle('on', navigator.onLine); }
+addEventListener('online', updateNet); addEventListener('offline', updateNet);
+
+/* ---------- GPS ---------- */
+function getGPS(timeout=20000){
+  return new Promise((res, rej) => {
+    if (!navigator.geolocation) return rej(new Error('This phone does not support GPS in the browser'));
+    navigator.geolocation.getCurrentPosition(
+      p => res({lat:+p.coords.latitude.toFixed(6), lng:+p.coords.longitude.toFixed(6), acc:Math.round(p.coords.accuracy), time:nowISO()}),
+      e => rej(new Error(e.code===1 ? 'Location permission denied. Allow location for this app in phone settings.' : 'Could not get GPS. Go outside / wait a bit and try again.')),
+      {enableHighAccuracy:true, timeout, maximumAge:15000});
+  });
+}
+
+/* ---------- Router ---------- */
+let route = {view:'home'};
+function go(r){ route = r; render(); scrollTo(0,0); }
+async function render(){
+  if (route.view==='home') return viewHome();
+  if (route.view==='project') return viewProject(route.id);
+  if (route.view==='bh') return viewBH(route.id, route.tab||'info');
+}
+
+/* ---------- Home: projects ---------- */
+async function viewHome(){
+  const [projects, bhs] = await Promise.all([dbAll('projects'), dbAll('boreholes')]);
+  projects.sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+  const pending = bhs.filter(b=>!b.uploadedAt || b.updatedAt>b.uploadedAt);
+  $('#app').innerHTML = `
+    <h2>Projects</h2>
+    ${projects.length ? projects.map(p=>{
+      const list = bhs.filter(b=>b.projectUid===p.uid);
+      const pend = list.filter(b=>!b.uploadedAt || b.updatedAt>b.uploadedAt).length;
+      return `<div class="card tap" data-p="${p.uid}">
+        <div class="row"><div><b>${esc(p.name)}</b><div class="muted">${esc(p.client||'')}${p.client&&p.location?' · ':''}${esc(p.location||'')}</div></div>
+        <div style="flex:none;text-align:right"><div class="muted">${list.length} BH${p.hubId?' · in Hub':''}</div>${pend?`<span class="badge b-new">${pend} to upload</span>`:(list.length?'<span class="badge b-ok">ALL UPLOADED</span>':'')}</div></div></div>`;
+    }).join('') : `<div class="empty">No projects yet.<br>Tap <b>+ New Project</b> to start.</div>`}
+    <p class="muted" style="text-align:center;margin-top:24px">Data is saved on this phone even without signal.<br>${S.hubToken?`Uploads go to Centrogeo Hub as <b>${esc(S.hubName)}</b> · <a href="#" id="so">Sign out</a>`:`Not signed in to Centrogeo Hub yet · <a href="#" id="si">Sign in</a>`}<br>v${APP_VERSION}</p>`;
+  if (window._cgInstall) { const ib = document.createElement('button'); ib.className = 'acc full'; ib.textContent = '📲 Install app on this phone'; ib.style.marginTop = '12px';
+    ib.onclick = async () => { const ev = window._cgInstall; window._cgInstall = null; ev.prompt(); await ev.userChoice; render(); }; $('#app').appendChild(ib); }
+  if ($('#so')) $('#so').onclick = e => { e.preventDefault(); hubSignOut(); };
+  if ($('#si')) $('#si').onclick = async e => { e.preventDefault(); if (await hubLogin()) render(); };
+  document.querySelectorAll('[data-p]').forEach(c=>c.onclick=()=>go({view:'project', id:c.dataset.p}));
+  setFab(`<button class="pri" id="np">+ New Project</button>${pending.length?`<button class="acc" id="ua">☁ Upload All (${pending.length})</button>`:''}`);
+  $('#np').onclick = () => editProject();
+  if ($('#ua')) $('#ua').onclick = () => uploadMany(pending.map(b=>b.uid));
+}
+
+function editProject(p){
+  const isNew = !p; p = p || {uid:uid(), name:'', client:'', location:'', createdAt:nowISO()};
+  const m = modal(`<h2>${isNew?'New Project':'Edit Project'}</h2>
+    <label>Project name *</label><input id="f_name" value="${esc(p.name)}">
+    <label>Client</label><input id="f_client" value="${esc(p.client)}">
+    <label>Location / Address</label><input id="f_loc" value="${esc(p.location)}">
+    <div class="acts">${isNew?'':'<button class="danger" id="del">Delete</button>'}<button id="cx">Cancel</button><button class="pri" id="ok">Save</button></div>`);
+  m.querySelector('#cx').onclick = () => m.remove();
+  m.querySelector('#ok').onclick = async () => {
+    p.name = m.querySelector('#f_name').value.trim(); if(!p.name) return toast('Enter project name');
+    p.client = m.querySelector('#f_client').value.trim(); p.location = m.querySelector('#f_loc').value.trim();
+    p.updatedAt = nowISO(); await dbPut('projects', p);
+    // mark boreholes changed so the new header goes to the cloud too
+    if (!isNew) for (const b of await dbByIndex('boreholes','project',p.uid)) { b.updatedAt=nowISO(); await dbPut('boreholes', b); }
+    m.remove(); toast('Project saved'); go({view:'project', id:p.uid});
+  };
+  if (!isNew) m.querySelector('#del').onclick = async () => {
+    const bhs = await dbByIndex('boreholes','project',p.uid);
+    m.remove(); await deleteProject(p);
+  };
+}
+
+async function deleteProject(p){
+  const bhs = await dbByIndex('boreholes','project',p.uid);
+  if (!await askPassword(`Delete project "${p.name}" and its ${bhs.length} borehole(s) from this phone? Already uploaded data stays in the cloud.`)) return;
+  for (const b of bhs) await deleteBH(b.uid);
+  await dbDel('projects', p.uid); toast('Project deleted'); go({view:'home'});
+}
+
+/* ---------- Project: boreholes ---------- */
+async function viewProject(id){
+  const p = await dbGet('projects', id); if(!p) return go({view:'home'});
+  const bhs = (await dbByIndex('boreholes','project',id)).sort((a,b)=>a.bhNo.localeCompare(b.bhNo, undefined, {numeric:true}));
+  $('#app').innerHTML = `
+    <div class="crumb"><a href="#" id="bk">‹ Projects</a></div>
+    <div class="row"><h2 class="grow">${esc(p.name)}</h2><button class="sm" id="ep" style="flex:none">Edit</button><button class="sm danger" id="dp" style="flex:none">Delete</button></div>
+    <div class="muted">${esc(p.client||'')}${p.client&&p.location?' · ':''}${esc(p.location||'')}</div>
+    <h3>Boreholes</h3>
+    ${bhs.length ? bhs.map(b=>{
+      const last = b.spt.length ? Math.max(...b.spt.map(s=>num(s.to)||0)) : 0;
+      return `<div class="card tap" data-b="${b.uid}"><div class="row"><div><b>${esc(b.bhNo)}</b>
+        <div class="muted">${b.spt.length} samples · ${last} m deep · ${esc(b.dateStart||'')}</div></div>
+        <div style="flex:none">${status(b)}</div></div></div>`;
+    }).join('') : `<div class="empty">No boreholes yet.</div>`}`;
+  $('#bk').onclick = e => { e.preventDefault(); go({view:'home'}); };
+  $('#ep').onclick = () => editProject(p);
+  $('#dp').onclick = () => deleteProject(p);
+  document.querySelectorAll('[data-b]').forEach(c=>c.onclick=()=>go({view:'bh', id:c.dataset.b}));
+  const pend = bhs.filter(b=>!b.uploadedAt || b.updatedAt>b.uploadedAt);
+  setFab(`<button class="pri" id="nb">+ New Borehole</button>${pend.length?`<button class="acc" id="ua">☁ Upload (${pend.length})</button>`:''}`);
+  $('#nb').onclick = async () => {
+    const next = 'BH-' + (bhs.length + 1);
+    const b = {uid:uid(), projectUid:id, bhNo:next, dateStart:'', dateEnd:'', operator:'', helper:'', method:'Standard Penetration Test', weather:'', gps:null, spt:[], water:[], notes:'', createdAt:nowISO(), updatedAt:nowISO(), uploadedAt:null};
+    await dbPut('boreholes', b); go({view:'bh', id:b.uid, tab:'info'});
+  };
+  if ($('#ua')) $('#ua').onclick = () => uploadMany(pend.map(b=>b.uid));
+}
+
+async function deleteBH(bhUid){
+  for (const ph of await dbByIndex('photos','bh',bhUid)) await dbDel('photos', ph.uid);
+  await dbDel('boreholes', bhUid);
+}
+async function touch(b){ b.updatedAt = nowISO(); await dbPut('boreholes', b); }
+
+/* ---------- Borehole screen ---------- */
+async function viewBH(id, tab){
+  const b = await dbGet('boreholes', id); if(!b) return go({view:'home'});
+  const p = await dbGet('projects', b.projectUid);
+  const photos = await dbByIndex('photos','bh',id);
+  const T = (k,l)=>`<button data-t="${k}" class="${tab===k?'on':''}">${l}</button>`;
+  $('#app').innerHTML = `
+    <div class="crumb"><a href="#" id="bk">‹ ${esc(p?.name||'Project')}</a></div>
+    <div class="row"><h2 class="grow">${esc(b.bhNo)}</h2><div style="flex:none">${status(b)}</div></div>
+    <div class="tabs">${T('info','Info')}${T('spt',`Samples (${b.spt.length})`)}${T('water',`Water (${b.water.length})`)}${T('photos',`Photos (${photos.length})`)}</div>
+    <div id="tab"></div>`;
+  $('#bk').onclick = e => { e.preventDefault(); go({view:'project', id:b.projectUid}); };
+  document.querySelectorAll('[data-t]').forEach(x=>x.onclick=()=>go({view:'bh', id, tab:x.dataset.t}));
+  setFab(`<button class="acc" id="up">☁ Upload to Cloud</button>`);
+  $('#up').onclick = () => uploadMany([id]);
+  if (tab==='info') tabInfo(b);
+  if (tab==='spt') tabSPT(b);
+  if (tab==='water') tabWater(b);
+  if (tab==='photos') tabPhotos(b, p, photos);
+}
+
+function tabInfo(b){
+  const F = (k,l,t='text',ph='') => `<label>${l}</label><input data-k="${k}" type="${t}" value="${esc(b[k])}" placeholder="${ph}">`;
+  $('#tab').innerHTML = `
+    ${F('bhNo','Borehole no. *')}
+    <div class="row"><div>${F('dateStart','Date started','date')}</div><div>${F('dateEnd','Date finished','date')}</div></div>
+    ${F('operator','Driller / operator')}
+    ${F('helper','Helper(s)')}
+    ${F('method','Boring method')}
+    ${F('weather','Weather')}
+    <label>Notes</label><textarea data-k="notes">${esc(b.notes)}</textarea>
+    <button class="pri full" id="saveinfo" style="margin-top:16px">💾 Save</button>
+    <button class="danger full" id="delb" style="margin-top:22px">Delete this borehole from phone</button>`;
+  document.querySelectorAll('#tab [data-k]').forEach(i => i.onchange = async () => { b[i.dataset.k] = i.value.trim(); await touch(b); });
+  $('#saveinfo').onclick = async () => { document.querySelectorAll('#tab [data-k]').forEach(i => b[i.dataset.k] = i.value.trim()); await touch(b); toast('Saved'); };
+  $('#delb').onclick = async () => { if (await confirmBox(`Delete ${b.bhNo} and all its photos from this phone?`)) { const pu=b.projectUid; await deleteBH(b.uid); go({view:'project', id:pu}); } };
+}
+
+/* ----- SPT ----- */
+function nVal(s){ const a=num(s.n2), c=num(s.n3); return (a===null&&c===null) ? '' : (a||0)+(c||0); }
+function tabSPT(b){
+  const rows = [...b.spt].sort((x,y)=>(num(x.from)||0)-(num(y.from)||0));
+  $('#tab').innerHTML = rows.length ? `<table><thead><tr><th>Depth (m)</th><th>Type</th><th>N</th><th>Soil</th></tr></thead><tbody>
+    ${rows.map(s=>{ const coring = s.type==='Coring'; return `<tr data-s="${s.uid}" style="cursor:pointer"><td>${s.from}–${s.to}<div class="muted">${esc(s.sampleNo||'')}</div></td>
+      <td><b>${coring?'Coring':'SPT'}</b>${coring?'':`<div class="muted">${[s.n1,s.n2,s.n3].map(v=>v===''||v==null?'–':v).join(' / ')}</div>`}</td><td class="n">${coring?'–':(s.refusal?'R':nVal(s))}</td>
+      <td>${esc(s.desc||'')}${s.color?`<div class="muted">${esc(s.color)}</div>`:''}</td></tr>`; }).join('')}</tbody></table>
+    <p class="muted">Tap a row to edit.</p>` : `<div class="empty">No samples yet.<br>Tap <b>+ Add Sample</b> after each sample.</div>`;
+  document.querySelectorAll('[data-s]').forEach(r=>r.onclick=()=>editSPT(b, b.spt.find(s=>s.uid===r.dataset.s)));
+  setFab(`<button class="pri" id="as">+ Add Sample</button><button class="acc" id="up">☁ Upload</button>`);
+  $('#as').onclick = () => editSPT(b);
+  $('#up').onclick = () => uploadMany([b.uid]);
+}
+async function editSPT(b, s){
+  const isNew = !s;
+  const proj = await dbGet('projects', b.projectUid);
+  const oldPhoto = s ? (await dbByIndex('photos','bh',b.uid)).find(x=>x.sptUid===s.uid) : null;
+  let newPhoto = null;
+  if (isNew){
+    s = {uid:uid(), type:'', from:'', to:'', n1:'', n2:'', n3:'', refusal:false, sampleNo:'', recovery:'', desc:'', color:'', moisture:'', remarks:''};
+  }
+  const m = modal(`<h2>${isNew?'Add':'Edit'} Sample</h2>
+    <h3 style="margin-top:4px">Step 1 · Sample photo</h3>
+    <div id="sptph">${oldPhoto?`<img src="${oldPhoto.data}" style="width:100%;border-radius:10px">`:'<div class="empty" style="padding:16px;border:2px dashed #cfd6e2;border-radius:10px">Take a photo of the sample first.</div>'}</div>
+    <div class="row" style="margin-top:8px"><button class="pri" id="scam">📷 ${oldPhoto?'Retake':'Take'} Photo</button><button id="sgal">🖼 Gallery</button><button id="srot" style="flex:none;display:none">⟳</button></div>
+    <input type="file" id="sfcam" accept="image/*" capture="environment" hidden><input type="file" id="sfgal" accept="image/*" hidden>
+    <div id="det" style="${oldPhoto?'':'display:none'}">
+    <h3>Step 2 · Details</h3>
+    <label>Sample type *</label>
+    <div class="row" id="tysel"><button data-ty="SPT" style="padding:12px">SPT</button><button data-ty="Coring" style="padding:12px">Coring</button></div>
+    <div class="row"><div><label>Depth from (m)</label><input id="from" type="number" step="0.01" inputmode="decimal" value="${s.from}"></div>
+    <div><label>Depth to (m)</label><input id="to" type="number" step="0.01" inputmode="decimal" value="${s.to}"></div></div>
+    <div id="blowsec" style="${s.type==='SPT'?'':'display:none'}">
+    <label>Blows per 150 mm (1st / 2nd / 3rd)</label>
+    <div class="blows"><input id="n1" type="number" inputmode="numeric" value="${s.n1}"><input id="n2" type="number" inputmode="numeric" value="${s.n2}"><input id="n3" type="number" inputmode="numeric" value="${s.n3}"></div>
+    <div class="nbox">N-value (2nd + 3rd) = <b id="nv">${nVal(s)===''?'–':nVal(s)}</b></div>
+    <label class="check"><input type="checkbox" id="ref" ${s.refusal?'checked':''}> Refusal (50 blows reached before full penetration)</label>
+    </div>
+    <div class="row"><div><label>Sample no.</label><input id="sn" value="${esc(s.sampleNo)}"></div><div><label>Recovery (cm)</label><input id="rec" type="number" inputmode="numeric" value="${esc(s.recovery)}"></div></div>
+    <label>Soil description</label><input id="desc" value="${esc(s.desc)}" list="soils">
+    <datalist id="soils"><option>Clay</option><option>Silty clay</option><option>Sandy clay</option><option>Clayey silt</option><option>Silt</option><option>Sandy silt</option><option>Silty sand</option><option>Clayey sand</option><option>Sand</option><option>Gravelly sand</option><option>Sandy gravel</option><option>Gravel</option><option>Fill / topsoil</option><option>Weathered rock</option></datalist>
+    <div class="row"><div><label>Color</label><input id="col" value="${esc(s.color)}" list="cols"></div><div><label>Moisture</label><select id="con"><option value=""></option>${['Wet','Dry'].map(o=>`<option ${(s.moisture??s.consistency)===o?'selected':''}>${o}</option>`).join('')}</select></div></div>
+    <datalist id="cols"><option>Brown</option><option>Dark brown</option><option>Light brown</option><option>Gray</option><option>Dark gray</option><option>Reddish brown</option><option>Yellowish brown</option><option>Black</option></datalist>
+    <label>Remarks</label><input id="rem" value="${esc(s.remarks)}">
+    </div>
+    <div class="acts">${isNew?'':'<button class="danger" id="del">Delete</button>'}<button id="cx">Cancel</button><button class="pri" id="ok" ${oldPhoto?'':'disabled'}>Save</button></div>`);
+  const q = x => m.querySelector(x);
+  const upd = () => q('#nv').textContent = q('#ref').checked ? 'Refusal' : ((q('#n2').value===''&&q('#n3').value==='') ? '–' : (num(q('#n2').value)||0)+(num(q('#n3').value)||0));
+  ['#n1','#n2','#n3','#ref'].forEach(x=>q(x).oninput=upd); upd();
+  let ty = s.type;
+  const setTy = t => { ty = t; m.querySelectorAll('#tysel [data-ty]').forEach(x => x.className = x.dataset.ty===t ? (t==='SPT'?'pri':'acc') : ''); q('#blowsec').style.display = t==='SPT' ? '' : 'none'; };
+  m.querySelectorAll('#tysel [data-ty]').forEach(x => x.onclick = () => setTy(x.dataset.ty));
+  if (ty) setTy(ty);
+  q('#scam').onclick = () => q('#sfcam').click();
+  q('#sgal').onclick = () => q('#sfgal').click();
+  let lastFile = null, lastG = null, rot = 0;
+  const pick = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    q('#sptph').innerHTML = '<div class="empty" style="padding:16px">Processing photo… getting GPS</div>';
+    let g = null; try { g = await getGPS(12000); } catch(err){}
+    lastFile = f; lastG = g; rot = 0;
+    try {
+      const data = await processPhoto(f, {project:proj?.name||'', bh:b.bhNo, gps:g, type:'Sample'});
+      q('#srot').style.display = '';
+      newPhoto = {data, lat:g?.lat??null, lng:g?.lng??null, acc:g?.acc??null};
+      q('#sptph').innerHTML = `<img src="${data}" style="width:100%;border-radius:10px">`;
+      q('#det').style.display = ''; q('#ok').disabled = false; q('#scam').textContent = '📷 Retake Photo';
+    } catch(err){ q('#sptph').innerHTML = '<div class="empty">Could not read photo. Try again.</div>'; }
+    e.target.value = '';
+  };
+  q('#sfcam').onchange = pick; q('#sfgal').onchange = pick;
+  q('#srot').onclick = async () => {
+    if (!lastFile) return;
+    rot = (rot + 90) % 360;
+    const data = await processPhoto(lastFile, {project:proj?.name||'', bh:b.bhNo, gps:lastG, type:'Sample'}, rot);
+    newPhoto.data = data; q('#sptph').innerHTML = `<img src="${data}" style="width:100%;border-radius:10px">`;
+  };
+  q('#cx').onclick = () => m.remove();
+  q('#ok').onclick = async () => {
+    if (!newPhoto && !oldPhoto) return toast('Take the sample photo first');
+    if (!ty) return toast('Choose SPT or Coring');
+    const f=num(q('#from').value), t=num(q('#to').value);
+    if (f===null || t===null || t<=f) return toast('Check the depths (to must be deeper than from)');
+    Object.assign(s, {type:ty, from:f, to:t, n1:q('#n1').value, n2:q('#n2').value, n3:q('#n3').value, refusal:q('#ref').checked,
+      sampleNo:q('#sn').value.trim(), recovery:q('#rec').value, desc:q('#desc').value.trim(), color:q('#col').value.trim(), moisture:q('#con').value, remarks:q('#rem').value.trim()});
+    if (isNew) b.spt.push(s);
+    if (newPhoto){
+      if (oldPhoto) await dbDel('photos', oldPhoto.uid);
+      await dbPut('photos', {uid:uid(), bhUid:b.uid, sptUid:s.uid, category:`${s.type} sample`, caption:`${s.from}–${s.to} m ${s.sampleNo}`.trim(), data:newPhoto.data, lat:newPhoto.lat, lng:newPhoto.lng, acc:newPhoto.acc, takenAt:nowISO(), uploadedAt:null});
+    } else if (oldPhoto){ oldPhoto.caption = `${s.from}–${s.to} m ${s.sampleNo}`.trim(); oldPhoto.category = `${s.type} sample`; await dbPut('photos', oldPhoto); }
+    await touch(b); m.remove(); toast('Sample saved'); go({view:'bh', id:b.uid, tab:'spt'});
+  };
+  if (!isNew) q('#del').onclick = async () => { b.spt = b.spt.filter(x=>x.uid!==s.uid); if (oldPhoto) await dbDel('photos', oldPhoto.uid); await touch(b); m.remove(); toast('Sample deleted'); go({view:'bh', id:b.uid, tab:'spt'}); };
+}
+
+/* ----- Water level ----- */
+function tabWater(b){
+  const rows = [...b.water].sort((x,y)=>(x.dateTime||'').localeCompare(y.dateTime||''));
+  $('#tab').innerHTML = rows.length ? `<table><thead><tr><th>Reading</th><th>Depth (m)</th><th>When</th></tr></thead><tbody>
+    ${rows.map(w=>`<tr data-w="${w.uid}" style="cursor:pointer"><td>${esc(w.type)}${w.remarks?`<div class="muted">${esc(w.remarks)}</div>`:''}</td><td class="n">${w.dry?'Dry':esc(w.depth)}</td><td>${fmtDT(w.dateTime)}</td></tr>`).join('')}</tbody></table>`
+    : `<div class="empty">No water level readings yet.</div>`;
+  document.querySelectorAll('[data-w]').forEach(r=>r.onclick=()=>editWater(b, b.water.find(w=>w.uid===r.dataset.w)));
+  setFab(`<button class="pri" id="aw">+ Add Reading</button><button class="acc" id="up">☁ Upload</button>`);
+  $('#aw').onclick = () => editWater(b);
+  $('#up').onclick = () => uploadMany([b.uid]);
+}
+function editWater(b, w){
+  const isNew = !w;
+  const local = () => { const d=new Date(); return new Date(d - d.getTimezoneOffset()*60000).toISOString().slice(0,16); };
+  w = w || {uid:uid(), type:'', depth:'', dry:false, dateTime:'', remarks:''};
+  const m = modal(`<h2>${isNew?'Add':'Edit'} Water Level</h2>
+    <label>Reading type</label><select id="ty"><option value=""></option>${['During drilling','After drilling (0 hr)','After 24 hours','Other'].map(o=>`<option ${o===w.type?'selected':''}>${o}</option>`).join('')}</select>
+    <label>Water depth below ground (m)</label><input id="dp" type="number" step="0.01" inputmode="decimal" value="${esc(w.depth)}">
+    <label class="check"><input type="checkbox" id="dry" ${w.dry?'checked':''}> No water encountered (dry)</label>
+    <label>Date & time of reading</label><input id="dt" type="datetime-local" value="${esc(w.dateTime)}">
+    <label>Remarks</label><input id="rm" value="${esc(w.remarks)}">
+    <div class="acts">${isNew?'':'<button class="danger" id="del">Delete</button>'}<button id="cx">Cancel</button><button class="pri" id="ok">Save</button></div>`);
+  const q = x => m.querySelector(x);
+  q('#cx').onclick = () => m.remove();
+  q('#ok').onclick = async () => {
+    if (!q('#dry').checked && num(q('#dp').value)===null) return toast('Enter water depth or tick "dry"');
+    Object.assign(w, {type:q('#ty').value, depth:q('#dp').value, dry:q('#dry').checked, dateTime:q('#dt').value, remarks:q('#rm').value.trim()});
+    if (isNew) b.water.push(w);
+    await touch(b); m.remove(); toast('Water level saved'); go({view:'bh', id:b.uid, tab:'water'});
+  };
+  if (!isNew) q('#del').onclick = async () => { b.water = b.water.filter(x=>x.uid!==w.uid); await touch(b); m.remove(); toast('Reading deleted'); go({view:'bh', id:b.uid, tab:'water'}); };
+}
+
+/* ----- Photos (compressed + GPS/time stamped on the image) ----- */
+const PHOTO_TYPES = ['Whiteboard / SPT log','Borehole location','Drilling rig','Soil sample','Site / surroundings','Other'];
+/* Required photo list — add more items here later */
+const it_label = c => c.slot;
+const REQUIRED_PHOTOS = [
+  {key:'corners', name:'Take photos of the four corners of the site with GPS.', gps:true, slots:['Corner 1','Corner 2','Corner 3','Corner 4']},
+  {key:'rigfar', name:'Take a photo of the rig setup from a farther distance.', gps:false, slots:['Rig Setup']},
+  {key:'vsite',  name:'Record a wide-shot video of the entire project site.', video:true, slots:['Site Video']},
+  {key:'vprep',  name:'Record a video of the drillers preparing the equipment.', video:true, slots:['Equipment Prep Video']},
+  {key:'vsetup', name:'Record a video of the team setting up the drilling machine.', video:true, slots:['Machine Setup Video']},
+  {key:'vtravel',name:'Record a video while traveling to the site.', video:true, slots:['Travel Video']},
+  {key:'vopen',  name:'Record a video while opening a sample.', video:true, slots:['Sample Opening Video']},
+];
+function tabPhotos(b, p, photos){
+  const req = photos.filter(x=>x.reqKey);
+  $('#tab').innerHTML = `
+    <h3 style="margin-top:6px">Required Photo List</h3>
+    ${REQUIRED_PHOTOS.map((it,i)=>{
+      const done = it.slots.filter(sl=>req.some(x=>x.reqKey===it.key && x.slot===sl)).length;
+      return `<div class="card">
+        <div class="row"><div style="font-weight:600">${i+1}. ${esc(it.name)}</div>
+        <div style="flex:none"><span class="badge ${done===it.slots.length?'b-ok':'b-new'}">${done}/${it.slots.length}</span></div></div>
+        <div style="display:grid;grid-template-columns:${it.slots.length>1?'1fr 1fr':'1fr'};gap:8px;margin-top:10px">
+        ${it.slots.map(sl=>{ const ph = req.find(x=>x.reqKey===it.key && x.slot===sl);
+          return `<button class="${ph?'':'pri'}" data-k="${it.key}" data-sl="${esc(sl)}" style="${ph?'background:#e3f5ea;color:var(--ok)':''}">
+            ${ph?'✓':(it.video?'🎥':'📷')} ${esc(sl)}${ph && it.gps && ph.lat==null?' <span style="color:var(--warn)">⚠ no GPS</span>':''}</button>`; }).join('')}
+        </div></div>`;
+    }).join('')}
+    <input type="file" id="rcam" accept="image/*" capture="environment" hidden>
+    <input type="file" id="rgal" accept="image/*" hidden>
+    <input type="file" id="vcam" accept="video/*" capture="environment" hidden>
+    <input type="file" id="vgal" accept="video/*" hidden>
+`;
+
+  // Required slots
+  let cur = null;
+  document.querySelectorAll('[data-sl]').forEach(btn => btn.onclick = () => {
+    const it = REQUIRED_PHOTOS.find(x=>x.key===btn.dataset.k); cur = {it, slot:btn.dataset.sl};
+    const has = req.some(x=>x.reqKey===it.key && x.slot===cur.slot);
+    const v = !!it.video;
+    const m = modal(`<h2>${esc(cur.slot)}</h2><p class="muted">${esc(it.name)}${has?` · this will replace the saved ${v?'video':'photo'}`:''}</p>
+      ${v?'<p class="muted">Keep it short (about 15–30 seconds) so it uploads faster.</p>':''}
+      <div class="row" style="margin-top:10px"><button class="pri" id="mc">${v?'🎥 Record Video':'📷 Take Photo'}</button><button id="mg">🖼 Gallery</button></div>
+      <div class="acts"><button id="cx">Cancel</button></div>`);
+    m.querySelector('#cx').onclick = () => m.remove();
+    m.querySelector('#mc').onclick = () => { m.remove(); $(v?'#vcam':'#rcam').click(); };
+    m.querySelector('#mg').onclick = () => { m.remove(); $(v?'#vgal':'#rgal').click(); };
+  });
+  const saveReq = async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f || !cur) return;
+    toast('Getting GPS…');
+    let g = null; try { g = await getGPS(20000); } catch(err){ toast(err.message, 3500); }
+    const data = await previewPhoto(f, {project:p?.name||'', bh:b.bhNo, gps:g, type:it_label(cur)});
+    if (!data) return;
+    for (const old of req.filter(x=>x.reqKey===cur.it.key && x.slot===cur.slot)) await dbDel('photos', old.uid);
+    await dbPut('photos', {uid:uid(), bhUid:b.uid, reqKey:cur.it.key, slot:cur.slot, category:cur.it.name, caption:cur.slot, data, lat:g?.lat??null, lng:g?.lng??null, acc:g?.acc??null, takenAt:nowISO(), uploadedAt:null});
+    await touch(b); toast(g ? `${cur.slot} saved` : `${cur.slot} saved — no GPS, retake outdoors`, 3000); go({view:'bh', id:b.uid, tab:'photos'});
+  };
+  $('#rcam').onchange = saveReq; $('#rgal').onchange = saveReq;
+  const saveVid = async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f || !cur) return;
+    const ok = await previewVideo(f, cur.slot); if (!ok) return;
+    let g = null; try { g = await getGPS(8000); } catch(err){}
+    for (const old of req.filter(x=>x.reqKey===cur.it.key && x.slot===cur.slot)) await dbDel('photos', old.uid);
+    const ext = (f.name.split('.').pop() || 'mp4').toLowerCase();
+    await dbPut('photos', {uid:uid(), bhUid:b.uid, reqKey:cur.it.key, slot:cur.slot, kind:'video', category:cur.it.name, caption:cur.slot, blob:f, mime:f.type||'video/mp4', ext, size:f.size, lat:g?.lat??null, lng:g?.lng??null, acc:g?.acc??null, takenAt:nowISO(), uploadedAt:null});
+    await touch(b); toast(`${cur.slot} saved (${(f.size/1048576).toFixed(1)} MB)`, 3000); go({view:'bh', id:b.uid, tab:'photos'});
+  };
+  $('#vcam').onchange = saveVid; $('#vgal').onchange = saveVid;
+
+}
+/* Auto-rotate: read the phone's EXIF orientation so sideways/upside-down photos come out upright */
+async function exifOrientation(file){
+  try {
+    const v = new DataView(await file.slice(0, 131072).arrayBuffer());
+    if (v.getUint16(0) !== 0xFFD8) return 1;
+    let o = 2;
+    while (o < v.byteLength - 4){
+      const mk = v.getUint16(o); const len = v.getUint16(o+2);
+      if (mk === 0xFFE1 && v.getUint32(o+4) === 0x45786966){
+        const t = o + 10; const le = v.getUint16(t) === 0x4949;
+        const ifd = t + v.getUint32(t+4, le); const n = v.getUint16(ifd, le);
+        for (let i=0;i<n;i++){ const e = ifd + 2 + i*12; if (v.getUint16(e, le) === 0x0112) return v.getUint16(e+8, le) || 1; }
+        return 1;
+      }
+      if ((mk & 0xFF00) !== 0xFF00) break;
+      o += 2 + len;
+    }
+  } catch(e){}
+  return 1;
+}
+async function loadUpright(file){
+  // 1) Best: let the browser decode it already upright
+  if (window.createImageBitmap){
+    try { const bm = await createImageBitmap(file, {imageOrientation:'from-image'}); return {src:bm, w:bm.width, h:bm.height, orient:1}; } catch(e){}
+  }
+  // 2) Fallback: plain image; rotate ourselves only if the browser doesn't already do it
+  const img = await new Promise((res, rej) => { const u = URL.createObjectURL(file); const i = new Image(); i.onload = () => { URL.revokeObjectURL(u); res(i); }; i.onerror = () => { URL.revokeObjectURL(u); rej(new Error('bad image')); }; i.src = u; });
+  const browserDoesIt = window.CSS && CSS.supports && CSS.supports('image-orientation', 'from-image');
+  const orient = browserDoesIt ? 1 : await exifOrientation(file);
+  return {src:img, w:img.naturalWidth, h:img.naturalHeight, orient};
+}
+/* extraRot: 0/90/180/270 — manual rotate button, on top of the automatic fix */
+async function processPhoto(file, info, extraRot=0){
+  const {src, w:W0, h:H0, orient} = await loadUpright(file);
+  const MAX = 1600; const sc = Math.min(1, MAX/Math.max(W0,H0));
+  let w = Math.round(W0*sc), h = Math.round(H0*sc);
+  // EXIF fallback rotation (orientation 3=180, 6=90cw, 8=270cw; mirrored ones treated as their rotation)
+  const exifRot = {3:180, 4:180, 5:90, 6:90, 7:270, 8:270}[orient] || 0;
+  const rot = (exifRot + extraRot) % 360;
+  const side = rot === 90 || rot === 270;
+  const c = document.createElement('canvas'); c.width = side ? h : w; c.height = side ? w : h;
+  const x = c.getContext('2d');
+  x.save(); x.translate(c.width/2, c.height/2); x.rotate(rot*Math.PI/180); x.drawImage(src, -w/2, -h/2, w, h); x.restore();
+  if (src.close) src.close();
+  w = c.width; h = c.height;
+  const fs = Math.max(14, Math.round(Math.min(w, h*1.33)/45)); const lines = [
+    `CENTROGEO · ${info.project} · ${info.bh}`,
+    info.gps ? `Lat ${info.gps.lat}  Lng ${info.gps.lng}  (±${info.gps.acc} m)` : 'GPS: not available',
+    `${fmtDT(nowISO())} · ${info.type}`];
+  const bh = fs*1.35*lines.length + fs*0.8;
+  x.fillStyle = 'rgba(0,0,0,.55)'; x.fillRect(0, h-bh, w, bh);
+  x.fillStyle = '#fff'; x.font = `600 ${fs}px system-ui, sans-serif`; x.textBaseline = 'top';
+  lines.forEach((l,i)=>x.fillText(l, fs*0.6, h-bh+fs*0.4+i*fs*1.35, w-fs*1.2));
+  return c.toDataURL('image/jpeg', 0.82);
+}
+function previewVideo(file, title){
+  return new Promise(res => {
+    const url = URL.createObjectURL(file);
+    const m = modal(`<h2>Check video · ${esc(title)}</h2><video src="${url}" controls playsinline style="width:100%;max-height:55vh;border-radius:10px;background:#000"></video>
+      <p class="muted">${(file.size/1048576).toFixed(1)} MB</p>
+      <div class="acts"><button id="cx">Cancel</button><button class="pri" id="ok">Save</button></div>`);
+    const done = v => { URL.revokeObjectURL(url); m.remove(); res(v); };
+    m.querySelector('#cx').onclick = () => done(false);
+    m.querySelector('#ok').onclick = () => done(true);
+  });
+}
+/* Preview with Rotate button before saving (for photos that still come out sideways) */
+function previewPhoto(file, info){
+  return new Promise(async res => {
+    let rot = 0, data;
+    const m = modal(`<h2>Check photo</h2><div id="pv" class="empty">Processing…</div>
+      <div class="acts"><button id="cx">Cancel</button><button id="rt">⟳ Rotate</button><button class="pri" id="ok" disabled>Save</button></div>`);
+    const q = x => m.querySelector(x);
+    const draw = async () => { q('#ok').disabled = true; data = await processPhoto(file, info, rot); q('#pv').className=''; q('#pv').innerHTML = `<img src="${data}" style="width:100%;border-radius:10px">`; q('#ok').disabled = false; };
+    q('#rt').onclick = async () => { rot = (rot + 90) % 360; await draw(); };
+    q('#cx').onclick = () => { m.remove(); res(null); };
+    q('#ok').onclick = () => { m.remove(); res(data); };
+    m.onclick = e => { if (e.target === m) { m.remove(); res(null); } };
+    try { await draw(); } catch(e){ m.remove(); toast('Could not read photo'); res(null); }
+  });
+}
+
+/* ---------- Upload to Cloud ---------- */
+async function post(payload){
+  const r = await fetch(S.cloudUrl || HUB_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(Object.assign({token:S.hubToken}, payload))});
+  const t = await r.text(); let j; try { j = JSON.parse(t); } catch(e){ throw new Error('Centrogeo Hub did not answer properly. Try again on better signal.'); }
+  if (j.auth){ S.hubToken = ''; S.hubName = ''; saveSettings(); const e = new Error(j.error || 'Sign in again'); e.auth = true; throw e; }
+  if (!j.ok) throw new Error(j.error || 'Upload failed'); return j;
+}
+/* Sign in with the same username + PIN as the Centrogeo Report Hub (Staff sheet) */
+function hubLogin(){
+  return new Promise(res => {
+    const m = modal(`<h2>Sign in to Centrogeo Hub</h2><p class="muted">Use the username and PIN the office gave you. You only do this once on this phone.</p>
+      <label>Username</label><input id="hu" autocapitalize="none" autocomplete="username" value="${esc(S.hubUser||'')}">
+      <label>PIN</label><input id="hp" type="password" inputmode="numeric" autocomplete="current-password">
+      <div class="acts"><button id="cx">Cancel</button><button class="pri" id="ok">Sign in</button></div>`);
+    m.querySelector('#cx').onclick = () => { m.remove(); res(false); };
+    m.querySelector('#ok').onclick = async () => {
+      const u = m.querySelector('#hu').value.trim(), pin = m.querySelector('#hp').value.trim();
+      if (!u || !pin) return toast('Enter your username and PIN');
+      if (!navigator.onLine) return toast('No internet. Connect first.');
+      const btn = m.querySelector('#ok'); btn.disabled = true; btn.textContent = 'Signing in…';
+      try { const j = await post({action:'login', username:u, pin}); S.hubToken = j.token; S.hubName = j.name; S.hubUser = u; saveSettings();
+        m.remove(); toast('Signed in as ' + j.name); res(true); }
+      catch(e){ toast(e.message, 3500); btn.disabled = false; btn.textContent = 'Sign in'; }
+    };
+  });
+}
+function hubSignOut(){ S.hubToken = ''; S.hubName = ''; saveSettings(); toast('Signed out'); render(); }
+const CHUNK = 4 * 1024 * 1024; // 4 MB per request (Google needs multiples of 256 KB)
+const blobToB64 = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = () => rej(r.error); r.readAsDataURL(blob); });
+async function uploadVideo(p, b, v, progress){
+  const meta = {uid:v.uid, category:v.category, caption:v.caption, lat:v.lat, lng:v.lng, acc:v.acc, takenAt:v.takenAt, mime:v.mime, ext:v.ext, size:v.size};
+  const st = await post({action:'videoStart', project:{uid:p.uid, name:p.name, hubId:p.hubId}, borehole:{uid:b.uid, bhNo:b.bhNo, hubId:b.hubId}, video:meta});
+  if (st.done) return;
+  for (let start = 0; start < v.size; start += CHUNK){
+    const end = Math.min(start + CHUNK, v.size);
+    const data = await blobToB64(v.blob.slice(start, end));
+    const r = await post({action:'videoChunk', uploadUrl:st.uploadUrl, start, end, total:v.size, mime:v.mime, data,
+      project:{uid:p.uid, name:p.name, hubId:p.hubId}, borehole:{uid:b.uid, bhNo:b.bhNo, hubId:b.hubId}, video:meta});
+    progress(Math.round(end / v.size * 100));
+    if (r.done) return;
+  }
+}
+async function uploadMany(ids){
+  if (!navigator.onLine) return toast('No internet. Connect to Wi-Fi first, then tap Upload again.', 3500);
+  if (!S.hubToken && !await hubLogin()) return;
+  const m = modal(`<h2>Uploading…</h2><div id="ul" class="muted">Starting</div><div class="prog"><i id="pb"></i></div><div class="acts"><button id="cl" disabled>Please wait</button></div>`);
+  const say = t => m.querySelector('#ul').textContent = t;
+  let done = 0, failed = [];
+  for (const id of ids){
+    const b = await dbGet('boreholes', id); if (!b) continue;
+    const p = await dbGet('projects', b.projectUid);
+    const photos = await dbByIndex('photos','bh',id);
+    const todo = photos.filter(x=>!x.uploadedAt);
+    const total = 1 + todo.length; let step = 0;
+    const bar = () => m.querySelector('#pb').style.width = Math.round(((done + step/total)/ids.length)*100)+'%';
+    try {
+      say(`${p?.name} · ${b.bhNo}: sending data`);
+      const stamp = nowISO();
+      const res = await post({action:'saveBorehole', project:p, borehole:b, photoCount:photos.length, appVersion:APP_VERSION, uploadedBy:b.operator});
+      if (p.hubId !== res.hubProjectId){ p.hubId = res.hubProjectId; await dbPut('projects', p); }
+      const bb = await dbGet('boreholes', id); bb.hubId = res.hubBoreholeId; await dbPut('boreholes', bb); b.hubId = bb.hubId;
+      step++; bar();
+      for (const ph of todo){
+        if (ph.kind === 'video'){
+          await uploadVideo(p, b, ph, pct => say(`${p?.name} · ${b.bhNo}: ${ph.slot} ${pct}% (${step} of ${todo.length})`));
+          ph.uploadedAt = nowISO(); await dbPut('photos', ph); step++; bar(); continue;
+        }
+        say(`${p?.name} · ${b.bhNo}: photo ${step} of ${todo.length}`);
+        await post({action:'savePhoto', project:{uid:p.uid, name:p.name, hubId:p.hubId}, borehole:{uid:b.uid, bhNo:b.bhNo, hubId:b.hubId},
+          photo:{uid:ph.uid, category:ph.category, caption:ph.caption, lat:ph.lat, lng:ph.lng, acc:ph.acc, takenAt:ph.takenAt, data:ph.data}});
+        ph.uploadedAt = nowISO(); await dbPut('photos', ph); step++; bar();
+      }
+      const fresh = await dbGet('boreholes', id);
+      fresh.uploadedAt = fresh.updatedAt > stamp ? stamp : nowISO(); await dbPut('boreholes', fresh);
+    } catch(e){ failed.push(`${b.bhNo}: ${e.message}`); if (e.auth) break; }
+    done++; bar();
+  }
+  m.querySelector('#pb').style.width = '100%';
+  say(failed.length ? `Some failed:\n${failed.join('\n')}\nYour data is still safe on the phone — try again.` : `Done! ${ids.length} borehole(s) sent to Centrogeo Hub. The office will see the project under "New from the field".`);
+  m.querySelector('#ul').style.whiteSpace = 'pre-line';
+  const cl = m.querySelector('#cl'); cl.disabled = false; cl.textContent = 'Close'; cl.className = 'pri';
+  cl.onclick = () => { m.remove(); render(); };
+}
+
+/* ---------- Admin settings (double-tap logo) ---------- */
+let lastTap = 0;
+$('#logo').addEventListener('click', () => { const t=Date.now(); if (t-lastTap < 450) adminLogin(); lastTap = t; });
+$('#logo').addEventListener('dblclick', e => e.preventDefault());
+function adminLogin(){
+  const m = modal(`<h2>Admin settings</h2><label>Admin PIN</label><input id="pin" type="password" inputmode="numeric"><div class="acts"><button id="cx">Cancel</button><button class="pri" id="ok">Open</button></div>`);
+  m.querySelector('#cx').onclick = () => m.remove();
+  m.querySelector('#ok').onclick = () => { if (m.querySelector('#pin').value === S.adminPin){ m.remove(); adminSettings(); } else toast('Wrong PIN'); };
+}
+function adminSettings(){
+  const m = modal(`<h2>Admin settings</h2>
+    <label>Centrogeo Hub link (leave blank for the default)</label><input id="url" value="${esc(S.cloudUrl)}" placeholder="${esc(HUB_URL)}">
+    <p class="muted">Signed in as: ${S.hubToken?esc(S.hubName):'nobody yet'}</p>
+    <button class="full" id="test" style="margin-top:8px">Test hub connection</button>
+    <label>Change admin PIN</label><input id="npin" type="password" inputmode="numeric" placeholder="Leave blank to keep">
+    <h3>Backup</h3>
+    <div class="row"><button id="exp">⬇ Export backup</button><button id="imp">⬆ Import backup</button></div>
+    <input type="file" id="impf" accept=".json" hidden>
+    <div class="acts"><button id="cx">Close</button><button class="pri" id="ok">Save</button></div>`);
+  const q = x => m.querySelector(x);
+  q('#cx').onclick = () => m.remove();
+  q('#test').onclick = async () => {
+    const old = S.cloudUrl; S.cloudUrl = q('#url').value.trim();
+    try { if (!S.hubToken && !await hubLogin()) { S.cloudUrl = old; return; } const j = await post({action:'ping'}); toast('✔ ' + (j.message||'OK'), 3500); } catch(e){ toast('✖ ' + e.message, 4000); }
+    S.cloudUrl = old;
+  };
+  q('#ok').onclick = () => {
+    S.cloudUrl = q('#url').value.trim();
+    if (q('#npin').value.trim()) S.adminPin = q('#npin').value.trim();
+    saveSettings(); m.remove(); toast('Settings saved'); render();
+  };
+  q('#exp').onclick = async () => {
+    const data = {app:'cg-field-boring', version:APP_VERSION, exportedAt:nowISO(), projects:await dbAll('projects'), boreholes:await dbAll('boreholes'), photos:(await dbAll('photos')).filter(x=>x.kind!=='video')};
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/json'}));
+    a.download = `centrogeo-field-backup-${today()}.json`; a.click();
+  };
+  q('#imp').onclick = () => q('#impf').click();
+  q('#impf').onchange = async e => {
+    try { const d = JSON.parse(await e.target.files[0].text());
+      for (const x of d.projects||[]) await dbPut('projects', x);
+      for (const x of d.boreholes||[]) await dbPut('boreholes', x);
+      for (const x of d.photos||[]) await dbPut('photos', x);
+      toast('Backup imported'); m.remove(); render();
+    } catch(err){ toast('Not a valid backup file'); }
+  };
+}
+
+/* ---------- Start ---------- */
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); window._cgInstall = e; if (typeof render === 'function') try { render(); } catch(x){} });
+updateNet();
+openDB().then(render).catch(e => { $('#app').innerHTML = `<div class="empty">Phone storage is not available: ${esc(e.message)}</div>`; });
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
