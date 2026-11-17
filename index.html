@@ -140,7 +140,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.7.1';
+const APP_VERSION = '1.7.2';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1001,10 +1001,13 @@ async function uploadMany(ids){
   }
   if (!navigator.onLine) return toast('No internet. Connect to Wi-Fi first, then tap Upload again.', 3500);
   if (!S.hubToken && !await hubLogin()) return;
-  const m = modal(`<h2>Uploading…</h2><div id="ul" class="muted">Starting</div><div class="prog"><i id="pb"></i></div><div class="acts"><button id="cl" disabled>Please wait</button></div>`);
-  const say = t => m.querySelector('#ul').textContent = t;
-  let done = 0, failed = [];
+  const m = modal(`<h2>Uploading…</h2><div id="ul" class="muted">Starting</div><div class="prog"><i id="pb"></i></div><div class="acts"><button id="cl" class="danger">Cancel upload</button></div>`);
+  const say = t => { if (!cancelled) m.querySelector('#ul').textContent = t; };
+  let done = 0, failed = [], cancelled = false;
+  const cl0 = m.querySelector('#cl');
+  cl0.onclick = () => { cancelled = true; cl0.disabled = true; cl0.textContent = 'Stopping…'; m.querySelector('#ul').textContent = 'Stopping after the current item…'; };
   for (const id of ids){
+    if (cancelled) break;
     const b = await dbGet('boreholes', id); if (!b) continue;
     const p = await dbGet('projects', b.projectUid);
     const photos = await dbByIndex('photos','bh',id);
@@ -1019,6 +1022,7 @@ async function uploadMany(ids){
       const bb = await dbGet('boreholes', id); bb.hubId = res.hubBoreholeId; await dbPut('boreholes', bb); b.hubId = bb.hubId;
       step++; bar();
       for (const ph of todo){
+        if (cancelled) break;
         if (ph.kind === 'video'){
           await uploadVideo(p, b, ph, pct => say(`${p?.name} · ${b.bhNo}: ${ph.slot} ${pct}% (${step} of ${todo.length})`));
           ph.uploadedAt = nowISO(); await dbPut('photos', ph); step++; bar(); continue;
@@ -1028,13 +1032,14 @@ async function uploadMany(ids){
           photo:{uid:ph.uid, category:ph.category, caption:ph.caption, lat:ph.lat, lng:ph.lng, acc:ph.acc, takenAt:ph.takenAt, data:ph.data}});
         ph.uploadedAt = nowISO(); await dbPut('photos', ph); step++; bar();
       }
+      if (cancelled) break;
       const fresh = await dbGet('boreholes', id);
       fresh.uploadedAt = fresh.updatedAt > stamp ? stamp : nowISO(); await dbPut('boreholes', fresh);
     } catch(e){ failed.push(`${b.bhNo}: ${e.message}`); if (e.auth) break; }
     done++; bar();
   }
   let liqMsg = '';
-  if (S.hubToken){
+  if (S.hubToken && !cancelled){
     const puids = [...new Set((await Promise.all(ids.map(id=>dbGet('boreholes',id)))).filter(Boolean).map(b=>b.projectUid))];
     for (const pu of puids){
       const p = await dbGet('projects', pu); if (!p) continue;
@@ -1044,9 +1049,13 @@ async function uploadMany(ids){
       catch(e){ failed.push(`Liquidation (${p.name}): ${e.message}`); if (e.auth) break; }
     }
   }
+  if (cancelled){
+    m.querySelector('#ul').textContent = 'Upload cancelled. Anything already sent is saved in the Hub; the rest is still safe on the phone. Tap Upload Project again to continue where it stopped.';
+  } else {
   m.querySelector('#pb').style.width = '100%';
   if (!S.hubToken) showGate('Sign in again to finish uploading.');
   say(failed.length ? `Some failed:\n${failed.join('\n')}\nYour data is still safe on the phone — try again.` : `Done! ${ids.length} borehole(s) sent to Centrogeo Hub. The office will see the project under "Ongoing projects".` + liqMsg);
+  }
   m.querySelector('#ul').style.whiteSpace = 'pre-line';
   const cl = m.querySelector('#cl'); cl.disabled = false; cl.textContent = 'Close'; cl.className = 'pri';
   cl.onclick = () => { m.remove(); render(); };
