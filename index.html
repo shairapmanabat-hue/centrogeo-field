@@ -140,7 +140,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.7.1';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -432,10 +432,20 @@ async function editSPT(b, s){
   if (isNew){
     s = {uid:uid(), type:'', from:'', to:'', n1:'', n2:'', n3:'', refusal:false, sampleNo:'', recovery:'', desc:'', color:'', moisture:'', remarks:''};
   }
+  /* guide: the deepest sample already logged in this borehole (other than this one) */
+  const others = b.spt.filter(x=>x.uid!==s.uid).sort((x,y)=>(num(x.to)||num(x.from)||0)-(num(y.to)||num(y.from)||0));
+  const prev = others[others.length-1];
+  const nextNo = prev && /\d+\s*$/.test(prev.sampleNo||'') ? (prev.sampleNo).replace(/(\d+)\s*$/, d => String(+d+1).padStart(d.length,'0')) : '';
+  const guide = prev ? `<div id="lastguide" style="margin:10px 0 2px;padding:10px 12px;border-radius:10px;background:#eef3fb;border:1px solid #c9d6ec;font-size:14px">
+      <div style="font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.3px">LAST SAMPLE LOGGED IN ${esc(b.bhNo||'THIS BOREHOLE')}</div>
+      <div style="margin-top:2px"><b>${esc(prev.sampleNo||'(no sample no.)')}</b> · ${esc(prev.type||'')} · ${esc(prev.from)}–${esc(prev.to)} m</div>
+      ${isNew&&nextNo?`<div style="margin-top:2px">Next sample no. should be <b>${esc(nextNo)}</b></div>`:''}</div>`
+    : (isNew?`<div id="lastguide" style="margin:10px 0 2px;padding:10px 12px;border-radius:10px;background:#eef3fb;border:1px solid #c9d6ec;font-size:14px">This is the <b>first sample</b> in ${esc(b.bhNo||'this borehole')}.</div>`:'');
   const m = modal(`<h2>${isNew?'Add':'Edit'} Sample</h2>
     <h3 style="margin-top:4px">Step 1 · Sample photo</h3>
     <div id="sptph">${oldPhoto?`<img src="${oldPhoto.data}" style="width:100%;border-radius:10px">`:'<div class="empty" style="padding:16px;border:2px dashed #cfd6e2;border-radius:10px">Take a photo of the sample first.</div>'}</div>
     <div class="row" style="margin-top:8px"><button class="pri" id="scam">📷 ${oldPhoto?'Retake':'Take'} Photo</button><button id="sgal">🖼 Gallery</button><button id="srot" style="flex:none;display:none">⟳</button></div>
+    ${guide}
     <input type="file" id="sfcam" accept="image/*" capture="environment" hidden><input type="file" id="sfgal" accept="image/*" hidden>
     <div id="det" style="${oldPhoto?'':'display:none'}">
     <h3>Step 2 · Details</h3>
@@ -449,7 +459,7 @@ async function editSPT(b, s){
     <div class="nbox">N-value (2nd + 3rd) = <b id="nv">${nVal(s)===''?'–':nVal(s)}</b></div>
     <label class="check"><input type="checkbox" id="ref" ${s.refusal?'checked':''}> Refusal (50 blows reached before full penetration)</label>
     </div>
-    <div class="row"><div><label>Sample no.</label><input id="sn" value="${esc(s.sampleNo)}"></div><div><label>Recovery (cm)</label><input id="rec" type="number" inputmode="numeric" value="${esc(s.recovery)}"></div></div>
+    <div class="row"><div><label>Sample no.</label><input id="sn" value="${esc(s.sampleNo)}" placeholder="${esc(isNew&&nextNo?nextNo:'')}"></div><div><label>Recovery (cm)</label><input id="rec" type="number" inputmode="numeric" value="${esc(s.recovery)}"></div></div>
     <label>Soil description</label><input id="desc" value="${esc(s.desc)}" list="soils">
     <datalist id="soils"><option>Clay</option><option>Silty clay</option><option>Sandy clay</option><option>Clayey silt</option><option>Silt</option><option>Sandy silt</option><option>Silty sand</option><option>Clayey sand</option><option>Sand</option><option>Gravelly sand</option><option>Sandy gravel</option><option>Gravel</option><option>Fill / topsoil</option><option>Weathered rock</option></datalist>
     <div class="row"><div><label>Color</label><input id="col" value="${esc(s.color)}" list="cols"></div><div><label>Moisture</label><select id="con"><option value=""></option>${['Wet','Dry'].map(o=>`<option ${(s.moisture??s.consistency)===o?'selected':''}>${o}</option>`).join('')}</select></div></div>
