@@ -140,7 +140,7 @@
    Data is stored on the phone (IndexedDB). Nothing leaves the
    phone until the operator taps "Upload to Cloud".
    ========================================================= */
-const APP_VERSION = '1.7.2';
+const APP_VERSION = '1.7.3';
 const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnmnHZio9ZR13RNc4CFAdVFBSCcycojXxAf-zPEik1oTtyKk-ZS2QE5f-Y1LxLczrf/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -430,7 +430,7 @@ async function editSPT(b, s){
   const oldPhoto = s ? (await dbByIndex('photos','bh',b.uid)).find(x=>x.sptUid===s.uid) : null;
   let newPhoto = null;
   if (isNew){
-    s = {uid:uid(), type:'', from:'', to:'', n1:'', n2:'', n3:'', refusal:false, sampleNo:'', recovery:'', desc:'', color:'', moisture:'', remarks:''};
+    s = {uid:uid(), type:'SPT', from:'', to:'', n1:'', n2:'', n3:'', refusal:false, sampleNo:'', recovery:'', desc:'', color:'', moisture:'', remarks:''};
   }
   /* guide: the deepest sample already logged in this borehole (other than this one) */
   const others = b.spt.filter(x=>x.uid!==s.uid).sort((x,y)=>(num(x.to)||num(x.from)||0)-(num(y.to)||num(y.from)||0));
